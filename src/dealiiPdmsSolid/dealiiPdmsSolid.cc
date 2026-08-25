@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "NeoHookeanMaterial.H"
+#include "TimeIntegration.H"
 
 using namespace dealii;
 
@@ -238,9 +239,10 @@ double PdmsSolid::assemble_newton(const std::vector<Sample> &samples)
   const double dt = prm.get_double("delta t");
   const double impedance = prm.get_double("solid impedance");
   const bool bdf2 = prm.get("time integration") == "bdf2" && history_depth >= 1;
-  const double velocity_coefficient = bdf2 ? 3.0/(2.0*dt) : 1.0/dt;
+  const double velocity_coefficient =
+    dealii_pdms::time_integration::velocity_coefficient(dt,bdf2);
   const double acceleration_coefficient =
-    bdf2 ? 9.0/(4.0*dt*dt) : 1.0/(dt*dt);
+    dealii_pdms::time_integration::acceleration_coefficient(dt,bdf2);
   const QGauss<dim> quadrature(2);
   const QGauss<dim-1> face_quadrature(2);
   FEValues<dim> values(fe, quadrature,
@@ -290,20 +292,10 @@ double PdmsSolid::assemble_newton(const std::vector<Sample> &samples)
           const Tensor<4,dim> A = dealii_pdms::consistent_tangent<dim>(F,mu,bulk);
           Tensor<1,dim> velocity;
           Tensor<1,dim> acceleration;
-          if (bdf2)
-            {
-              velocity =
-                (3.0*displacements[q]-4.0*old_displacements[q]
-                 +older_displacements[q])/(2.0*dt);
-              acceleration =
-                (3.0*velocity-4.0*old_velocities[q]
-                 +older_velocities[q])/(2.0*dt);
-            }
-          else
-            {
-              velocity=(displacements[q]-old_displacements[q])/dt;
-              acceleration=(velocity-old_velocities[q])/dt;
-            }
+          velocity = dealii_pdms::time_integration::velocity
+            (displacements[q],old_displacements[q],older_displacements[q],dt,bdf2);
+          acceleration = dealii_pdms::time_integration::acceleration
+            (velocity,old_velocities[q],older_velocities[q],dt,bdf2);
           for (unsigned int i=0; i<fe.n_dofs_per_cell(); ++i)
             {
               const auto grad_i = values[displacement].gradient(i,q);
@@ -347,9 +339,9 @@ double PdmsSolid::assemble_newton(const std::vector<Sample> &samples)
                         if (bdf2)
                           u_older += older_solution[local[j]]*phi_j;
                       }
-                    const Tensor<1,dim> solid_velocity = bdf2
-                      ? (3.0*u-4.0*u_old+u_older)/(2.0*dt)
-                      : (u-u_old)/dt;
+                    const Tensor<1,dim> solid_velocity =
+                      dealii_pdms::time_integration::velocity
+                        (u,u_old,u_older,dt,bdf2);
                     cell_rhs(i) +=
                       (phi_i*(robin-impedance*solid_velocity))
                       *face_values.JxW(q);
@@ -453,18 +445,10 @@ void PdmsSolid::write_results(const std::vector<Sample> &samples,
       for (unsigned int d=0; d<dim; ++d)
         {
           u[d]=value[d];
-          if (bdf2)
-            {
-              velocity[d]=(3.0*value[d]-4.0*old_value[d]+older_value[d])/(2.0*dt);
-              acceleration[d]=
-                (3.0*velocity[d]-4.0*old_velocity_value[d]
-                 +older_velocity_value[d])/(2.0*dt);
-            }
-          else
-            {
-              velocity[d]=(value[d]-old_value[d])/dt;
-              acceleration[d]=(velocity[d]-old_velocity_value[d])/dt;
-            }
+          velocity[d]=dealii_pdms::time_integration::velocity
+            (value[d],old_value[d],older_value[d],dt,bdf2);
+          acceleration[d]=dealii_pdms::time_integration::acceleration
+            (velocity[d],old_velocity_value[d],older_velocity_value[d],dt,bdf2);
         }
       const Tensor<1,dim> traction =
         s.traction + impedance*(s.velocity-velocity);

@@ -44,6 +44,8 @@ class robinRobinCouplingInterface : public fluidSolidInterface
     const fileName dealIIQueryInput_;
     const fileName dealIIOutput_;
     const scalar dealIIImpedance_;
+    const bool stateAudit_;
+    label acceptedStepCount_;
     List<vectorField> dealIIPointIncrement_;
     List<vectorField> dealIIFaceVelocity_;
     List<vectorField> dealIIFaceTraction_;

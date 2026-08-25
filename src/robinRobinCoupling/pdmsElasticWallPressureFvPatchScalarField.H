@@ -59,9 +59,9 @@ class pdmsElasticWallPressureFvPatchScalarField
         //  in the previous fsi iteration
         vectorField prevAcceleration_;
 
-        //- A pointer to the solid density times the solid virtual thickness
-        //  field mapped to the fluid patch
-        mutable autoPtr<scalarField> rhoSolidHsPtr_;
+        //- Solid density times virtual thickness mapped to the fluid patch.
+        //  An empty field denotes a cache that has not yet been constructed.
+        mutable scalarField rhoSolidHs_;
 
         //- Optional constant solid thickness
         //  If constantHs < SMALL, it indicates that it should not be used and

@@ -20,7 +20,7 @@ test -s "$work/robin-out.csv"
 test -s "$work/solid.vtu"
 test -s "$work/solid-state.bin"
 awk -F, 'NR>1 {if ($6 > max) max=$6} END {exit !(max>0)}' "$work/robin-out.csv"
-echo "PASS: deal.II Robin load produces positive interface displacement"
+echo "PASS: positive pressure on a flat +z fluid normal gives compressive +z solid displacement"
 
 # Advance one more accepted structural step from the serialized state. This
 # exercises both vectors in the restart (displacement and velocity).

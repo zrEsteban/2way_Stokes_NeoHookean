@@ -32,7 +32,7 @@ namespace Foam
 
 const scalarField& pdmsElasticWallPressureFvPatchScalarField::rhoSolidHs() const
 {
-    if (rhoSolidHsPtr_.empty())
+    if (rhoSolidHs_.empty())
     {
     #ifdef OPENFOAM_NOT_EXTEND
         const fvMesh& mesh = internalField().mesh();
@@ -149,19 +149,13 @@ const scalarField& pdmsElasticWallPressureFvPatchScalarField::rhoSolidHs() const
         );
 
         // Initialise the rhoHs field for the fluid patch and map zone to patch
-        rhoSolidHsPtr_.set
-        (
-            new scalarField
-            (
-                fsi.fluid().globalPatches()
-                [
-                    interfaceID
-                ].globalFaceToPatch(rhoHsZoneAtFluid)
-            )
-        );
+        rhoSolidHs_ = fsi.fluid().globalPatches()
+        [
+            interfaceID
+        ].globalFaceToPatch(rhoHsZoneAtFluid);
     }
 
-    return rhoSolidHsPtr_();
+    return rhoSolidHs_;
 }
 
 
@@ -176,7 +170,7 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
     robinFvPatchScalarField(p, iF),
     prevPressure_(p.patch().size(), 0),
     prevAcceleration_(p.patch().size(), vector::zero),
-    rhoSolidHsPtr_(),
+    rhoSolidHs_(),
     constantHs_(-1.0)
 {}
 
@@ -190,11 +184,16 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
 )
 :
     robinFvPatchScalarField(ptf, p, iF, mapper),
-    prevPressure_(p.patch().size(), 0),
-    prevAcceleration_(p.patch().size(), vector::zero),
-    rhoSolidHsPtr_(),
+    prevPressure_(mapper(ptf.prevPressure_)),
+    prevAcceleration_(mapper(ptf.prevAcceleration_)),
+    rhoSolidHs_(),
     constantHs_(ptf.constantHs_)
-{}
+{
+    if (ptf.rhoSolidHs_.size())
+    {
+        rhoSolidHs_ = mapper(ptf.rhoSolidHs_);
+    }
+}
 
 
 pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarField
@@ -207,7 +206,7 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
     robinFvPatchScalarField(p, iF),
     prevPressure_(p.patch().size(), 0),
     prevAcceleration_(p.patch().size(), vector::zero),
-    rhoSolidHsPtr_(),
+    rhoSolidHs_(),
     constantHs_(dict.lookupOrDefault<scalar>("constantHs", -1.0))
 {
     if (dict.found("value"))
@@ -215,9 +214,36 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
         Field<scalar>::operator=(scalarField("value", dict, p.size()));
     }
 
+    if
+    (
+        dict.found("coeff0")
+     && dict.found("coeff1")
+     && dict.found("rhs")
+    )
+    {
+        this->coeff0() = scalarField("coeff0", dict, p.size());
+        this->coeff1() = scalarField("coeff1", dict, p.size());
+        this->rhs() = scalarField("rhs", dict, p.size());
+    }
+    else
+    {
+        this->coeff0() = 1.0;
+        this->coeff1() = 1.0;
+    }
+
     if (dict.found("prevPressure"))
     {
-        Field<scalar>::operator=(scalarField("prevPressure", dict, p.size()));
+        prevPressure_ = scalarField("prevPressure", dict, p.size());
+    }
+
+    if (dict.found("prevAcceleration"))
+    {
+        prevAcceleration_ = vectorField("prevAcceleration", dict, p.size());
+    }
+
+    if (dict.found("rhoSolidHs"))
+    {
+        rhoSolidHs_ = scalarField("rhoSolidHs", dict, p.size());
     }
 
     if (constantHs_ < SMALL)
@@ -230,8 +256,6 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
             << constantHs_ << endl;
     }
 
-    this->coeff0() = 1.0;
-    this->coeff1() = 1.0;
 }
 
 
@@ -244,6 +268,7 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
     robinFvPatchScalarField(pivpvf),
     prevPressure_(pivpvf.prevPressure_),
     prevAcceleration_(pivpvf.prevAcceleration_),
+    rhoSolidHs_(pivpvf.rhoSolidHs_),
     constantHs_(pivpvf.constantHs_)
 {}
 #endif
@@ -258,7 +283,7 @@ pdmsElasticWallPressureFvPatchScalarField::pdmsElasticWallPressureFvPatchScalarF
     robinFvPatchScalarField(pivpvf, iF),
     prevPressure_(pivpvf.prevPressure_),
     prevAcceleration_(pivpvf.prevAcceleration_),
-    rhoSolidHsPtr_(),
+    rhoSolidHs_(pivpvf.rhoSolidHs_),
     constantHs_(pivpvf.constantHs_)
 {}
 
@@ -271,6 +296,12 @@ void pdmsElasticWallPressureFvPatchScalarField::autoMap
 )
 {
     fvPatchField<scalar>::autoMap(m);
+    prevPressure_ = m(prevPressure_);
+    prevAcceleration_ = m(prevAcceleration_);
+    if (rhoSolidHs_.size())
+    {
+        rhoSolidHs_ = m(rhoSolidHs_);
+    }
 }
 
 
@@ -281,6 +312,14 @@ void pdmsElasticWallPressureFvPatchScalarField::rmap
 )
 {
     fvPatchField<scalar>::rmap(ptf, addr);
+    const pdmsElasticWallPressureFvPatchScalarField& robinP =
+        refCast<const pdmsElasticWallPressureFvPatchScalarField>(ptf);
+    prevPressure_.rmap(robinP.prevPressure_, addr);
+    prevAcceleration_.rmap(robinP.prevAcceleration_, addr);
+    if (robinP.rhoSolidHs_.size())
+    {
+        rhoSolidHs_.rmap(robinP.rhoSolidHs_, addr);
+    }
 }
 
 void pdmsElasticWallPressureFvPatchScalarField::updateCoeffs()
@@ -425,9 +464,21 @@ void pdmsElasticWallPressureFvPatchScalarField::write(Ostream& os) const
     robinFvPatchScalarField::write(os);
 #ifdef OPENFOAM_ORG
     writeEntry(os, "prevPressure", prevPressure_);
+    writeEntry(os, "prevAcceleration", prevAcceleration_);
 #else
     prevPressure_.writeEntry("prevPressure", os);
+    prevAcceleration_.writeEntry("prevAcceleration", os);
 #endif
+    os.writeKeyword("constantHs") << constantHs_
+        << token::END_STATEMENT << nl;
+    if (rhoSolidHs_.size())
+    {
+#ifdef OPENFOAM_ORG
+        writeEntry(os, "rhoSolidHs", rhoSolidHs_);
+#else
+        rhoSolidHs_.writeEntry("rhoSolidHs", os);
+#endif
+    }
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

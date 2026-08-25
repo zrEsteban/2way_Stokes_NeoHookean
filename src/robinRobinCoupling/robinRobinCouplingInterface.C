@@ -161,6 +161,11 @@ robinRobinCouplingInterface::robinRobinCouplingInterface
     (
         fsiProperties().lookupOrAddDefault<scalar>("dealIIImpedance", 0)
     ),
+    stateAudit_
+    (
+        fsiProperties().lookupOrAddDefault<bool>("stateAudit", false)
+    ),
+    acceptedStepCount_(0),
     dealIIPointIncrement_(),
     dealIIFaceVelocity_(),
     dealIIFaceTraction_(),
@@ -1345,6 +1350,10 @@ bool robinRobinCouplingInterface::evolve()
 
     if (useDealII_)
     {
+        // Persist only the state associated with the converged interface.
+        // During the outer loop these fields are provisional and are never
+        // promoted to accepted-state.bin.
+        updatePdmsElasticWallPressure();
         if (Pstream::master() && !dealIIAcceptCommand_.empty())
         {
             const int status=std::system(dealIIAcceptCommand_.c_str());
@@ -1355,6 +1364,13 @@ bool robinRobinCouplingInterface::evolve()
             }
         }
         UPstream::barrier(UPstream::worldComm);
+        ++acceptedStepCount_;
+        if (stateAudit_ && Pstream::master())
+        {
+            Info<< "G1 state audit: accepted time step "
+                << acceptedStepCount_ << " exactly once at t="
+                << runTime().value() << endl;
+        }
     }
     else
     {
