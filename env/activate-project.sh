@@ -7,6 +7,7 @@ if [[ -z ${WM_PROJECT_DIR:-} || -z ${WM_OPTIONS:-} ]]; then
 fi
 
 project_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+export TWO_WAY_FSI_ROOT="$project_root"
 build_id=${PROJECT_BUILD_ID:-g0e-846a5f0}
 project_prefix="$project_root/platforms/$build_id/$WM_OPTIONS"
 export S4F_ROOT=${PROJECT_S4F_ROOT:-$project_root/external/solids4foam/source}

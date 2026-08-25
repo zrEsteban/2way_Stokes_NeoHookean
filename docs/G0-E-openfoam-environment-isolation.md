@@ -196,3 +196,28 @@ Esto no cambia el diagnóstico del gate y queda como limitación documental.
 Riesgos: sensibilidad de convergencia al orden paralelo; PETSc 3.25.3 sigue
 siendo una dependencia externa fijada por versión/ruta; avisos de APIs antiguas;
 y el fuerte permanece intencionalmente inestable hasta G7. No se inicia G1.
+
+## Addendum G0-CLOSE
+
+G0-MPI-D demostró que el FAIL anterior no era sensibilidad paralela ni un
+defecto de procedencia. `decomposePar`, al cargar la condición personalizada,
+llamaba a un `write()` que no serializa `constantHs`; el campo descompuesto
+usaba entonces el default y duplicaba la impedancia. G0-CLOSE versiona el
+procedimiento seguro `decomposeCase.sh`, que exige una copia sin `processor*`,
+ejecuta ambas regiones con `decomposePar -no-libs` y valida estructuralmente
+con `foamDictionary` el valor y dimensiones en cada procesador. `runCase.sh
+-parallel` repite la validación inmediatamente antes de `mpirun`.
+
+Dos ejecuciones MPI nuevas e independientes alcanzaron `End`, exit 0, 10 pasos
+y correctores `1,1,1,1,1,1,1,3,4,4`. Ambas produjeron byte a byte:
+
+```text
+456fcad9861aa7d41f369967798ef1fcc113267b9c81b7868c32e6fae454c472  fsiResiduals.dat
+9fe82c68db1d2e2b22b42d3efe01ae10c49376f06f6be082db4c5134bb14793a  robin-out.csv
+```
+
+Último ratio `0.5088212164`, residuo geométrico `7.807540571e-5`, sin
+NaN/Inf. La comparación con el serial pasa `rtol=5e-5`. Por tanto el criterio
+**mínimo MPI cambia a PASS** y el entorno/procedencia G0 queda **PASS**. El
+defecto C++ de serialización queda contenido por `-no-libs` y asignado
+obligatoriamente a G1; no se modificó en este cierre.

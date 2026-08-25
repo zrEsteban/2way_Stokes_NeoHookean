@@ -325,3 +325,31 @@ No hubo instrumentación ni cambios de fuente. Riesgos abiertos:
 **Siguiente acción propuesta, sin ejecutarla aquí:** remediación documental del
 procedimiento MPI en G0-E-R y repetición del cierre G0. No iniciar G1 hasta esa
 decisión.
+
+## Resolución en G0-CLOSE
+
+La acción recomendada fue implementada y verificada sin cambios C++:
+
+- `decomposeCase.sh` es el único procedimiento activo del caso y usa
+  `decomposePar -no-libs` para fluido y sólido;
+- aborta si encuentra cualquier `processor*` preexistente;
+- `validate-decomposition-constantHs.sh` compara mediante `foamDictionary`, a
+  precisión 17, tipo de patch, valor de `constantHs`, dimensiones del campo y
+  número esperado de ocurrencias;
+- `runCase.sh -parallel` obliga a validar de nuevo inmediatamente antes del
+  lanzamiento MPI;
+- la regresión temporal prueba el camino positivo, el rechazo de una segunda
+  descomposición y que el validador rechaza tanto ausencia como alteración del
+  valor.
+
+Dos ejecuciones MPI nuevas mediante esos scripts terminaron `End`, exit 0, sin
+NaN/Inf y con `fsiResiduals.dat` y `robin-out.csv` idénticos byte a byte. La
+comparación serial/MPI pasa `rtol=5e-5`. La condición que mantenía bloqueado G0
+queda resuelta y G0-CLOSE puede declarar **G0 PASS**.
+
+Permanece como deuda obligatoria de G1:
+`pdmsElasticWallPressureFvPatchScalarField::write()` debe escribir y releer
+idempotentemente todos los coeficientes físicos y estados, preservar
+`constantHs` con el plugin cargado en `decomposePar`, y conservar exactamente
+el estado Robin en restart serial y MPI. Hasta aprobarlo, `-no-libs` es una
+protección obligatoria.
