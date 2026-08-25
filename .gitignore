@@ -9,6 +9,7 @@ compile_commands.json
 
 # OpenFOAM
 cases/
+validation/
 platforms/
 lnInclude/
 processor*/
