@@ -1,211 +1,198 @@
-# G0-E — Aislamiento y procedencia del entorno OpenFOAM
+# G0-E-R — Remediación de procedencia y aislamiento OpenFOAM/solids4foam
 
 Fecha: 2026-08-25 (America/Santiago)  
-Commit fuente auditado: `846a5f0a3f6d3abc9ffc32e83d4c96dc4fe7eb69`  
-HEAD documental durante la auditoría: `0194b5005b7a09356a3603745ff48f46f2f137ce`  
-Resultado: **FAIL — entorno compartido; no ejecutar casos FSI**
+Baseline canónico: `846a5f0a3f6d3abc9ffc32e83d4c96dc4fe7eb69`
 
-Los fuentes relevantes del workspace son idénticos a `846a5f0` (`git diff
---exit-code 846a5f0 -- src ...` devolvió 0), pero el ejecutable principal
-`solids4Foam` y `libsolids4FoamModels.so` siguen procediendo de
-`~/OpenFOAM/ezamora-v2512`. El repositorio fuente externo solids4foam está
-dirty. Por tanto no puede atribuirse una futura ejecución FSI sólo al nuevo
-repositorio ni aprobarse G0-E.
+HEAD inicial: `d41eaaef2b2c59a3daa0e2142f75eaab618dc0b9`
+Resultado: **FAIL — el mínimo MPI no completa**
 
-No se ejecutó ningún caso FSI durante este subgate. No se borró ni sobrescribió
-ningún artefacto de `ezamora-v2512`.
+Este gate sólo cambió procedencia, aislamiento, portabilidad y documentación.
+No cambió formulación FSI, parámetros físicos, tolerancias ni algoritmos. No se
+modificó, limpió ni sobrescribió `~/OpenFOAM/ezamora-v2512` ni el árbol dirty
+original `/home/ezamora/Workspace/solids4foam`.
 
-## Identidad y entorno inicial
+## solids4foam fijado
 
-```text
-pwd                              /home/ezamora/OpenFOAM/2way_Stokes_NeoHookean
-realpath .                       /home/ezamora/OpenFOAM/2way_Stokes_NeoHookean
-git rev-parse --show-toplevel    /home/ezamora/OpenFOAM/2way_Stokes_NeoHookean
-git rev-parse HEAD               0194b5005b7a09356a3603745ff48f46f2f137ce
-```
-
-La shell preparada normalmente por `openfoam2512 -c` produjo:
+Se eligió **commit base + parche**, pues no hay un fork autorizado con los
+cambios requeridos:
 
 ```text
-WM_PROJECT_DIR=/usr/lib/openfoam/openfoam2512
-WM_PROJECT_VERSION=v2512
-WM_PROJECT_USER_DIR=/home/ezamora/OpenFOAM/ezamora-v2512
-WM_OPTIONS=linux64GccDPInt32Opt
-FOAM_USER_APPBIN=/home/ezamora/OpenFOAM/ezamora-v2512/platforms/linux64GccDPInt32Opt/bin
-FOAM_USER_LIBBIN=/home/ezamora/OpenFOAM/ezamora-v2512/platforms/linux64GccDPInt32Opt/lib
+URL             https://github.com/solids4foam/solids4foam.git
+commit          4b254fa5260e0ae94640d7404089bde73907fc2d
+parche          external/solids4foam/patches/0001-g0-baseline-runtime.patch
+SHA-256 parche  9099bbfcc247235ab9d736e5ed3e7587aceae5e1e4ad359e936db04a3ed207d0
+SHA-256 diff    9099bbfcc247235ab9d736e5ed3e7587aceae5e1e4ad359e936db04a3ed207d0
+overlays        ninguno
 ```
 
-`PATH` antepone el `bin` anterior a los binarios de OpenFOAM del sistema y
-`LD_LIBRARY_PATH` antepone el `lib` anterior. En consecuencia, el build
-canónico sin overrides:
+`external/solids4foam/prepare-checkout.sh` clona, hace checkout detached,
+valida/aplica el parche y comprueba commit, hash del diff y ausencia de
+untracked. Una reconstrucción adicional en `/tmp/g0er-s4f-verify` reprodujo
+los hashes. Durante la auditoría se usó el repositorio original sólo como
+mirror local de lectura; el build usó exclusivamente
+`external/solids4foam/source`.
+
+La auditoría original registró detached HEAD `4b254fa5`, el remoto anterior,
+10 archivos modificados (482 inserciones, 35 eliminaciones) y sus untracked.
+Se clasificaron como necesarios y se capturaron seis `.C/.H`:
+`newMovingWallVelocityFvPatchVectorField`, `neoHookeanElastic` y
+`nonLinGeomUpdatedLagSolid`. Cuatro campos `T` de `hotCylinder`, logs y
+mallas/resultados de `sphericalCavity` son incidentales y se excluyeron. No
+hubo archivos inciertos ni untracked requeridos. El árbol original conservó
+el mismo estado al final.
+
+## Versiones y activación
+
+| Componente | Versión efectiva |
+|---|---|
+| SO | Ubuntu 22.04.5 LTS; kernel 6.8.0-136-generic x86_64 |
+| OpenFOAM | OpenCFD v2512, `linux64GccDPInt32Opt` |
+| solids4foam | `4b254fa5` + parche fijado |
+| GCC/G++ | 11.4.0 |
+| CMake | 3.22.1 |
+| Open MPI | 4.1.2; `libmpi.so.40.30.2` |
+| deal.II | 9.3.2 |
+| PETSc OpenFOAM | 3.25.3, `arch-openmpi-cpu-opt-nox` |
+| PETSc deal.II | 3.15.5 del sistema |
+| Otras | HDF5/OpenMPI, HYPRE 3.1.0, METIS/ParMETIS, Trilinos |
+
+Activación reproducible:
 
 ```bash
-openfoam2512 -c 'cd src/robinRobinCoupling && wmake libso'
+source /usr/lib/openfoam/openfoam2512/etc/bashrc
+export PETSC_DIR=/path/to/petsc-3.25.3
+export PETSC_ARCH=arch-openmpi-cpu-opt-nox
+source env/activate-project.sh
 ```
 
-instala realmente en
-`/home/ezamora/OpenFOAM/ezamora-v2512/platforms/linux64GccDPInt32Opt/lib`, no
-en el nuevo repositorio. El entorno por defecto queda clasificado como
-**compartido**.
+El script deriva la raíz desde sí mismo, define `S4F_ROOT`,
+`WM_PROJECT_USER_DIR`, `FOAM_USER_APPBIN` y `FOAM_USER_LIBBIN`, y usa
+`platforms/g0e-846a5f0/$WM_OPTIONS/{bin,lib}`. Elimina de `PATH` y
+`LD_LIBRARY_PATH` las plataformas `ezamora-v2512`, antepone prefijo y PETSc,
+exige los cinco artefactos y falla ante `not found` o enlace legacy. No toca
+`.bashrc`. Desde una shell nueva, `type -a`, `which` y `readlink -f` muestran
+únicamente el `solids4Foam` del prefijo aislado.
 
-## Inspección de build y ejecución
-
-- `src/robinRobinCoupling/Make/files` define
-  `LIB=$(FOAM_USER_LIBBIN)/librobinRobinCoupling`.
-- `src/robinRobinCoupling/Make/options` fija
-  `S4F_ROOT=/home/ezamora/Workspace/solids4foam`, incluye sus cabeceras y busca
-  `-lsolids4FoamModels` exclusivamente mediante `-L$(FOAM_USER_LIBBIN)`.
-- La ley adicional usa el mismo patrón y genera
-  `$(FOAM_USER_LIBBIN)/libfiveParameterMooneyRivlinElastic.so`.
-- `src/dealiiPdmsSolid/CMakeLists.txt` no define `install()`: CMake deja
-  `dealiiPdmsSolid` dentro del directorio de build elegido. El smoke script usa
-  por defecto `/tmp/dealii-pdms-build`.
-- `semiImplicitBetaIQNILS/runCase.sh` invoca `openfoam2512 -c ... solids4Foam`
-  y sólo antepone PETSc; por ello vuelve a seleccionar el `solids4Foam` de
-  `ezamora-v2512`.
-- Sus `fsiProperties` apuntan a `/tmp/dealii-pdms-build/dealiiPdmsSolid` y sus
-  CSV/estado/parámetros contienen rutas absolutas bajo
-  `/home/ezamora/OpenFOAM/ezamora-v2512/cases/...`.
-- Existen muchas referencias equivalentes en otros casos y scripts, además de
-  `LD_PRELOAD`/`LD_LIBRARY_PATH` absolutos para PETSc 3.25.3.
-- No se encontraron referencias de build útiles a `$WM_PROJECT_USER_DIR` que
-  corrijan automáticamente estas rutas absolutas.
-
-## Inventario previo
-
-Metadatos antes del nuevo build:
-
-| Ruta | Tamaño | mtime | SHA-256 |
-|---|---:|---|---|
-| `ezamora-v2512/.../bin/solids4Foam` | 27,344 | 2026-07-28 12:18:19 -0400 | `31c342343fc6185776398a888e235185ad1ca56bd31006f856b5b70ea09e2e41` |
-| `ezamora-v2512/.../lib/libsolids4FoamModels.so` | 19,015,720 | 2026-08-12 13:24:04 -0400 | `3c65a7a5de5a14d29d98db4765bd69abaa9abc91201588d6e93e8daeba534b33` |
-| `ezamora-v2512/.../lib/librobinRobinCoupling.so` | 723,216 | 2026-08-25 01:24:24 -0400 | `366dfdf52c3fd7752dcd83c0eea85e1ce0c445c5da8507784b4638fdf3b633bf` |
-| `ezamora-v2512/.../lib/libfiveParameterMooneyRivlinElastic.so` | 1,301,280 | 2026-08-25 01:23:59 -0400 | `68fe05522591c92788c4e8e9b57ed3d1e38e2a8fbb90455b3fb98876c4187121` |
-| nuevo repo `platforms/.../bin/solids4Foam` | 27,344 | 2026-08-25 01:09:47 -0400 | `31c342343fc6185776398a888e235185ad1ca56bd31006f856b5b70ea09e2e41` |
-| nuevo repo `platforms/.../lib/libsolids4FoamModels.so` | 19,015,720 | 2026-08-25 01:09:47 -0400 | `3c65a7a5de5a14d29d98db4765bd69abaa9abc91201588d6e93e8daeba534b33` |
-| nuevo repo `platforms/.../lib/librobinRobinCoupling.so` | 723,216 | 2026-08-25 01:09:47 -0400 | `366dfdf52c3fd7752dcd83c0eea85e1ce0c445c5da8507784b4638fdf3b633bf` |
-| nuevo repo `platforms/.../lib/libfiveParameterMooneyRivlinElastic.so` | 1,301,280 | 2026-08-25 01:09:47 -0400 | `68fe05522591c92788c4e8e9b57ed3d1e38e2a8fbb90455b3fb98876c4187121` |
-| `/tmp/g0-20260825/build-dealii/dealiiPdmsSolid` | 7,927,320 | 2026-08-25 01:32:35 -0400 | `0cde590160bc7fa9f769b5dc3d6cbf43bd1cad8fb593d65da2f440fcd12e03f5` |
-| `/tmp/g0-dealii-pdms-build/dealiiPdmsSolid` | 7,927,320 | 2026-08-25 01:23:30 -0400 | `01a053f60d2f063915209c7dd311db69aa166f1d3a1ab4ff809a432657b8f298` |
-
-Las cuatro copias del nuevo repo son bit a bit iguales a las de
-`ezamora-v2512`; sin manifiesto de creación no prueban procedencia y se
-clasifican como ambiguas. `type -a solids4Foam` y `which solids4Foam` en el
-entorno inicial devolvieron únicamente
-`/home/ezamora/OpenFOAM/ezamora-v2512/platforms/linux64GccDPInt32Opt/bin/solids4Foam`.
-`dealiiPdmsSolid` no estaba en `PATH`.
-
-## Ensayo de prefijo aislado
-
-Se creó un prefijo nuevo, previamente inexistente e ignorado por Git:
-
-```text
-/home/ezamora/OpenFOAM/2way_Stokes_NeoHookean/platforms/g0e-846a5f0/
-```
-
-Los fuentes se extrajeron directamente con
-`git archive 846a5f0 src` a `/tmp/g0e-846a5f0-src`; no se usó el working tree
-para compilar. Desde `env -i`, una shell `--noprofile --norc` y
-`source /usr/lib/openfoam/openfoam2512/etc/bashrc`, se definió:
+## Build aislado
 
 ```bash
-export WM_PROJECT_USER_DIR=/home/ezamora/OpenFOAM/2way_Stokes_NeoHookean
-export FOAM_USER_APPBIN=$WM_PROJECT_USER_DIR/platforms/g0e-846a5f0/$WM_OPTIONS/bin
-export FOAM_USER_LIBBIN=$WM_PROJECT_USER_DIR/platforms/g0e-846a5f0/$WM_OPTIONS/lib
-export PATH=$FOAM_USER_APPBIN:$PATH
-export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:/home/ezamora/Workspace/petsc-3.25.3/arch-openmpi-cpu-opt-nox/lib:/home/ezamora/OpenFOAM/ezamora-v2512/platforms/$WM_OPTIONS/lib:$LD_LIBRARY_PATH
-export LIBRARY_PATH=/home/ezamora/OpenFOAM/ezamora-v2512/platforms/$WM_OPTIONS/lib
+export PETSC_DIR=/home/ezamora/Workspace/petsc-3.25.3
+export PETSC_ARCH=arch-openmpi-cpu-opt-nox
+export BUILD_JOBS=4
+scripts/build-isolated-g0e.sh
 ```
 
-`LIBRARY_PATH` es la alternativa mínima que permite que `wmake` encuentre la
-dependencia externa pese a que `Make/options` sólo incluye
-`-L$(FOAM_USER_LIBBIN)`. El prefijo propio queda primero en resolución; las
-dependencias externas quedan explícitas después.
+El script valida commit/diff; ejecuta `Allwmake -j 4`; `wclean/wmake libso`
+para `robinRobinCoupling` y `fiveParameterMooneyRivlinElastic`; y CMake Release
+para `dealiiPdmsSolid`. Todo se instala en el prefijo aislado. Exit 0;
+609.41 s de pared, 2047.97 s usuario, 102.32 s sistema, RSS 1,528,280 KiB.
+No hubo errores. Las 397 líneas con `warning:` corresponden principalmente a
+392 repeticiones del aviso TBB `task.h` deprecado; el resto son deprecaciones
+OpenFOAM y dos `maybe-uninitialized`.
 
-Builds efectuados, sin casos:
+| Artefacto | Bytes | SHA-256 |
+|---|---:|---|
+| `bin/solids4Foam` | 27,344 | `31c342343fc6185776398a888e235185ad1ca56bd31006f856b5b70ea09e2e41` |
+| `bin/dealiiPdmsSolid` | 7,927,392 | `0513de624ad0dc0093c47a8aff09517bf6c0e1c5f40407308eae1dcd0ff5ae4d` |
+| `lib/libsolids4FoamModels.so` | 19,015,720 | `ad3e0764c3bd66d798b5036667c1f1d453c7370d247dadf3cc2efcc684c7228f` |
+| `lib/librobinRobinCoupling.so` | 723,216 | `1196c2f04a71910e10b366b8a5a6c460d7c4f4bc8fa0a925ddc04d00aa1f92df` |
+| `lib/libfiveParameterMooneyRivlinElastic.so` | 1,301,280 | `e4f8a57348d53d26964346494097f029d21ec45932e1196ccc0c371b37afd13e` |
 
-| Artefacto aislado | Exit | Duración | SHA-256 nuevo |
-|---|---:|---:|---|
-| `.../lib/librobinRobinCoupling.so` | 0 | 25.35 s | `366dfdf52c3fd7752dcd83c0eea85e1ce0c445c5da8507784b4638fdf3b633bf` |
-| `.../lib/libfiveParameterMooneyRivlinElastic.so` | 0 | 20.07 s | `68fe05522591c92788c4e8e9b57ed3d1e38e2a8fbb90455b3fb98876c4187121` |
-| `.../bin/dealiiPdmsSolid` | 0 | 16.68 s | `b5c607c9b23ae2bc9b251711584a6e19a114cb78ac10a7660f23afd0d085ab12` |
+## Enlazado, PETSc y MPI
 
-Los dos plugins tienen build determinista y repitieron el hash antiguo. Su
-mtime/inodo y logs demuestran que se crearon en el prefijo nuevo, pero el hash
-por sí solo no distingue las copias. `dealiiPdmsSolid` sí cambió respecto de
-las dos copias `/tmp`. Los hashes y mtimes de `ezamora-v2512` permanecieron
-inalterados después del ensayo.
+Con activación, `ldd` no muestra `not found` ni rutas `ezamora-v2512`.
+`solids4Foam`, acoplador y ley cargan `libsolids4FoamModels.so` local. Las
+bibliotecas OpenFOAM base vienen de `/usr/lib/openfoam/openfoam2512` y las de
+sistema de `/usr/lib`, ambas permitidas. `readelf -d` indica que los artefactos
+OpenFOAM no tienen RPATH/RUNPATH: la resolución la controla y verifica la
+activación. `dealiiPdmsSolid` tiene sólo RUNPATH del paquete hacia
+HDF5/OpenMPI, sin rutas personales.
 
-## Resolución comprobada
+Mapas `/proc/<pid>/maps` capturados durante el fuerte:
 
-En una segunda shell limpia con la activación anterior:
+| Proceso | PETSc | MPI |
+|---|---|---|
+| `solids4Foam` | `libpetsc.so.3.25.3` del PETSc fijado | `libmpi.so.40.30.2` |
+| `dealiiPdmsSolid` | `libpetsc_real.so.3.15.5` del sistema | `libmpi.so.40.30.2` |
 
-```text
-which dealiiPdmsSolid
-  -> .../2way_Stokes_NeoHookean/platforms/g0e-846a5f0/linux64GccDPInt32Opt/bin/dealiiPdmsSolid
+Son procesos separados; cada uno carga una sola versión PETSc y ambos usan la
+misma ABI MPI. No existe mezcla PETSc 3.25/3.15 en un espacio de proceso.
 
-which solids4Foam
-  -> .../ezamora-v2512/platforms/linux64GccDPInt32Opt/bin/solids4Foam
+## Portabilidad y caso
 
-ldd .../g0e-846a5f0/.../librobinRobinCoupling.so
-  librobinRobinCoupling.so -> archivo inspeccionado del prefijo aislado
-  libsolids4FoamModels.so  -> .../ezamora-v2512/.../lib/libsolids4FoamModels.so
-  libpetsc.so.3.25         -> .../Workspace/petsc-3.25.3/.../libpetsc.so.3.25
+Los `Make/options` reciben `S4F_ROOT`/`SOLIDS4FOAM_ROOT`. El caso usa rutas
+relativas para mallas, CSV, estados y parámetros; `runCase.sh` obtiene ambos
+ejecutables del entorno. `prepareCase.sh` regenera las mallas; `solid.msh`
+reproducida dio SHA-256
+`dace8367d5cab024d4136e3b1ffa350cdb479ca888568bba93cdda40a467dd9b`.
 
-ldd .../g0e-846a5f0/.../libfiveParameterMooneyRivlinElastic.so
-  libsolids4FoamModels.so  -> .../ezamora-v2512/.../lib/libsolids4FoamModels.so
+La búsqueda de `/home/`, `ezamora-v2512` y el nombre del repo dejó sólo una
+referencia documental y el patrón activo que rechaza la plataforma legacy. No
+hay rutas personales en configuraciones activas. `.gitignore` ya no ignora
+genéricamente `cases/`: versiona sólo inputs de `semiImplicitBetaIQNILS` y
+mantiene ignorados tiempos, `processor*`, postproceso, logs, mallas derivadas,
+CSV, estados/restarts, VTK/VTU y binarios.
 
-ldd .../g0e-846a5f0/.../bin/dealiiPdmsSolid
-  deal.II/PETSc/Trilinos   -> bibliotecas del sistema
-```
+## Pruebas en copias independientes
 
-No hubo entradas `not found`. No se carga accidentalmente una copia antigua de
-los dos plugins porque el prefijo local tiene precedencia. Sin embargo, el
-ejecutable y el modelo base de solids4foam siguen siendo deliberadamente los
-de `ezamora-v2512`; esto es precisamente el bloqueo de procedencia.
+No se usaron resultados antiguos. En el mínimo serial, `endTime` se cambió
+sólo en `/tmp` a `1e-6`: exit 0, `End`, 231.21 s, 10 pasos y correctores
+`1,1,1,1,1,1,1,3,4,4`. Último corrector: residuo geométrico
+`7.807517485e-5`, `max|r_u|=1.541915375e-7`, defecto de potencia
+`9.67608909e-7`, ratio `0.5088320737`; cero NaN/Inf.
+
+Sobre 3,645 muestras, máximo/RMS: desplazamiento
+`2.101379583e-13 / 6.297507644e-14 m`; velocidad
+`9.892006932e-7 / 3.070778798e-7 m/s`; aceleración
+`5.338689470 / 1.694320606 m/s2`; tracción
+`199.1533633 / 23.12918385 Pa`.
+
+El mínimo MPI declara 4 rangos: fluido `(2 2 1)`, sólido `(4 1 1)`. Un ensayo
+válido llegó a `8e-7` y abortó a 100 correctores: residuo geométrico
+`2.869738984e-5`, ratio físico `5.419727823`, exit MPI 1, 1,426.03 s y sin
+NaN/Inf. Una repetición exclusiva, sin otros casos FSI, volvió a atascarse en
+`8e-7`; se detuvo adicionalmente en 62 correctores al alcanzar residuo
+`1.680353733e-4` y ratio `5.775932799`, porque el criterio ya había fallado.
+Se descartó un intento que omitió exportar el ejecutable deal.II por ser error
+del arnés, no evidencia numérica.
+
+Dos copias fuertes reprodujeron exactamente `t=1.1e-6`, paso 11, 100
+correctores y exit observado 134. Métricas idénticas: ratio `3.212720779`,
+residuo geométrico `5.254843908e-5`, `max|r_u|=9.735517512e-7`, defecto de
+potencia `1.319919402e-5`; cero NaN/Inf. `robin-in.csv` y `robin-out.csv`
+fueron byte a byte idénticos, con SHA-256 `16282a82...3290` y
+`9369af55...80a0`. Máximo/RMS del trial: desplazamiento
+`4.256686703e-13 / 1.331954459e-13 m`, velocidad
+`3.082259442e-6 / 9.791980312e-7 m/s`, aceleración
+`32.51879265 / 9.957997670 m/s2`, tracción
+`632.2268432 / 109.8604309 Pa`.
+
+La comparación ordena por `(x,y,z)` y exige
+`||a-b||inf <= atol + 5e-5 max(||a||inf,||b||inf)`, con `atol` de `1e-15 m`,
+`1e-12 m/s`, `1e-7 m/s2` y `1e-6 Pa`. A/B tiene diferencia cero. Alcanzar
+`1e-4 s` en el fuerte es criterio de G7, no de G0.
 
 ## Gate
 
-| Criterio | Estado | Evidencia |
-|---|---|---|
-| Fuentes corresponden a `846a5f0` | PASS | extracción `git archive`; diff de fuentes vacío |
-| Destino exacto de cada build conocido | PASS | prefijo `platforms/g0e-846a5f0` y build CMake explícito |
-| Ejecutable usado proviene del nuevo build | **FAIL** | deal.II sí; `solids4Foam` resuelve a `ezamora-v2512` |
-| Bibliotecas propias cargadas desde rutas esperadas | PASS | plugins aislados primero en `LD_LIBRARY_PATH` |
-| Ninguna biblioteca antigua tiene precedencia accidental | PASS parcial | plugins no; solids4foam antiguo es dependencia explícita |
-| Repetible desde shell nueva | PASS para builds propios | demostrado dos veces con `env -i`; no para solids4foam externo dirty |
-| Rutas y comandos documentados | PASS | este informe |
+| Criterio | Estado |
+|---|---|
+| URL/commit solids4foam fijados y parche reproducible | PASS |
+| Árbol dirty original excluido | PASS |
+| Ejecutable y bibliotecas desde prefijo aislado | PASS |
+| Sin dependencia runtime `ezamora-v2512` | PASS |
+| Un PETSc por proceso y MPI ABI compatible | PASS |
+| Rutas activas portables | PASS |
+| Mínimo serial | PASS |
+| Mínimo MPI | **FAIL**: aborto a 100 correctores en `8e-7` |
+| Fuerte reproducible, sin NaN/Inf | PASS |
+| Inputs, documentación y scripts versionados | PASS |
+| Árbol limpio y push | PASS tras el commit documental (verificado al cierre) |
 
-Resultado G0-E: **FAIL**. G0 permanece no aprobado y no se debe ejecutar ningún
-caso FSI.
+Por el FAIL MPI, **G0-E-R no se aprueba**. Los mapas completos de ambos
+participantes se capturaron en el fuerte serial; en el mínimo MPI se verificó
+estáticamente el mismo enlazado, pero no se conservó un mapa de cada rango.
+Esto no cambia el diagnóstico del gate y queda como limitación documental.
 
-## Conflictos, dependencia bloqueante y cambio mínimo
-
-Rutas conflictivas/ambiguas:
-
-- `~/OpenFOAM/ezamora-v2512/platforms/$WM_OPTIONS/bin/solids4Foam`;
-- `~/OpenFOAM/ezamora-v2512/platforms/$WM_OPTIONS/lib/libsolids4FoamModels.so`;
-- copias bit a bit iguales y sin manifiesto en el `platforms/$WM_OPTIONS` del
-  nuevo repo;
-- `/tmp/dealii-pdms-build` y `/tmp/g0-dealii-pdms-build`;
-- rutas absolutas `ezamora-v2512` dentro de `fsiProperties` y `solid.prm`.
-
-Dependencia bloqueante: el repositorio actual no contiene ni construye
-`solids4Foam`/`libsolids4FoamModels.so`; `Make/options` consume el árbol externo
-`/home/ezamora/Workspace/solids4foam`, que está dirty, mientras sus binarios
-instalados viven en `ezamora-v2512`.
-
-Cambio mínimo recomendado para un próximo subgate, no aplicado aquí:
-
-1. fijar un commit limpio de solids4foam y registrar también sus parches, o
-   crear un commit limpio que contenga los cambios requeridos;
-2. compilar `solids4Foam`, `libsolids4FoamModels.so` y herramientas asociadas
-   desde ese estado hacia el mismo prefijo aislado del nuevo repo;
-3. hacer que `Make/options` acepte `S4F_ROOT` y un directorio de bibliotecas
-   externo configurables, sin rutas personales ni dependencia de
-   `FOAM_USER_LIBBIN` para encontrar solids4foam;
-4. proporcionar una activación versionada que anteponga sólo el prefijo
-   aislado y PETSc fijado;
-5. sustituir rutas absolutas de casos por rutas relativas o generadas;
-6. repetir `type -a`, `which`, SHA-256 y `ldd`; sólo entonces reabrir los casos
-   FSI de G0.
+Riesgos: sensibilidad de convergencia al orden paralelo; PETSc 3.25.3 sigue
+siendo una dependencia externa fijada por versión/ruta; avisos de APIs antiguas;
+y el fuerte permanece intencionalmente inestable hasta G7. No se inicia G1.

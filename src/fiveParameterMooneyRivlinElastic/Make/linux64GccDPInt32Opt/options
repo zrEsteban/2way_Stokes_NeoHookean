@@ -38,7 +38,11 @@
 
 # 8 "<command-line>" 2
 # 1 "Make/options"
-S4F_ROOT = /home/ezamora/Workspace/solids4foam
+S4F_ROOT ?= $(SOLIDS4FOAM_ROOT)
+
+ifeq ($(strip $(S4F_ROOT)),)
+ $(error S4F_ROOT must point to the fixed solids4foam checkout)
+endif
 
 EXE_INC = -Wno-old-style-cast -Wno-deprecated-declarations -I$(S4F_ROOT)/src/solids4FoamModels/lnInclude -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude
 
@@ -47,10 +51,5 @@ EXE_INC = -Wno-old-style-cast -Wno-deprecated-declarations -I$(S4F_ROOT)/src/sol
 
 
 LIB_LIBS = -L$(FOAM_USER_LIBBIN) -lsolids4FoamModels -lfiniteVolume -lmeshTools
-
-
-
-
-
 
 # options

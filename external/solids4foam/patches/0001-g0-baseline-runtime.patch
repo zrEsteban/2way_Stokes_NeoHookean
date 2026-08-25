@@ -1,0 +1,690 @@
+diff --git a/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.C b/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.C
+index aa0f8a76..e63c077b 100644
+--- a/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.C
++++ b/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.C
+@@ -46,7 +46,9 @@ newMovingWallVelocityFvPatchVectorField::newMovingWallVelocityFvPatchVectorField
+     Fc_(p.patch().size(), vector::zero),
+     oldFc_(p.patch().size(), vector::zero),
+     oldoldFc_(p.patch().size(), vector::zero),
+-    acceleration_(p.patch().size(), vector::zero)
++    acceleration_(p.patch().size(), vector::zero),
++    physicalTimeVelocity_(false),
++    aleKinematicsDiagnostics_(false)
+ {}
+ 
+ 
+@@ -63,7 +65,9 @@ newMovingWallVelocityFvPatchVectorField::newMovingWallVelocityFvPatchVectorField
+     Fc_(p.patch().size(), vector::zero),
+     oldFc_(p.patch().size(), vector::zero),
+     oldoldFc_(p.patch().size(), vector::zero),
+-    acceleration_(p.patch().size(), vector::zero)
++    acceleration_(p.patch().size(), vector::zero),
++    physicalTimeVelocity_(ptf.physicalTimeVelocity_),
++    aleKinematicsDiagnostics_(ptf.aleKinematicsDiagnostics_)
+ {}
+ 
+ 
+@@ -83,7 +87,15 @@ newMovingWallVelocityFvPatchVectorField::newMovingWallVelocityFvPatchVectorField
+     Fc_(p.patch().size(), vector::zero),
+     oldFc_(p.patch().size(), vector::zero),
+     oldoldFc_(p.patch().size(), vector::zero),
+-    acceleration_(p.patch().size(), vector::zero)
++    acceleration_(p.patch().size(), vector::zero),
++    physicalTimeVelocity_
++    (
++        dict.lookupOrDefault<bool>("physicalTimeVelocity", false)
++    ),
++    aleKinematicsDiagnostics_
++    (
++        dict.lookupOrDefault<bool>("aleKinematicsDiagnostics", false)
++    )
+ {
+     fvPatchVectorField::operator=(vectorField("value", dict, p.size()));
+ 
+@@ -116,7 +128,9 @@ newMovingWallVelocityFvPatchVectorField::newMovingWallVelocityFvPatchVectorField
+     Fc_(pivpvf.Fc_),
+     oldFc_(pivpvf.oldFc_),
+     oldoldFc_(pivpvf.oldoldFc_),
+-    acceleration_(pivpvf.acceleration_)
++    acceleration_(pivpvf.acceleration_),
++    physicalTimeVelocity_(pivpvf.physicalTimeVelocity_),
++    aleKinematicsDiagnostics_(pivpvf.aleKinematicsDiagnostics_)
+ {}
+ #endif
+ 
+@@ -132,7 +146,9 @@ newMovingWallVelocityFvPatchVectorField::newMovingWallVelocityFvPatchVectorField
+     Fc_(pivpvf.oldFc_),
+     oldFc_(pivpvf.oldFc_),
+     oldoldFc_(pivpvf.oldoldFc_),
+-    acceleration_(pivpvf.acceleration_)
++    acceleration_(pivpvf.acceleration_),
++    physicalTimeVelocity_(pivpvf.physicalTimeVelocity_),
++    aleKinematicsDiagnostics_(pivpvf.aleKinematicsDiagnostics_)
+ {}
+ 
+ 
+@@ -227,17 +243,31 @@ void newMovingWallVelocityFvPatchVectorField::updateCoeffs()
+         Up = (Fc_ - oldFc_)/mesh.time().deltaT().value();
+     }
+ 
+-    scalarField phip(p.size(), 0);
+     if (mesh.moving())
+     {
+-        phip = p.patchField<surfaceScalarField, scalar>(fvc::meshPhi(U));
+-    }
++        const scalarField phip
++        (
++            p.patchField<surfaceScalarField, scalar>(fvc::meshPhi(U))
++        );
+ 
+-    const vectorField n(p.nf());
+-    const scalarField& magSf = p.magSf();
+-    const scalarField Un(phip/(magSf + VSMALL));
++        const vectorField n(p.nf());
++        const scalarField& magSf = p.magSf();
++        const scalarField Un(phip/(magSf + VSMALL));
+ 
+-    Up += n*(Un - (n & Up));
++        if (aleKinematicsDiagnostics_)
++        {
++            Info<< "ALE kinematics: max physicalInterfaceVelocity = "
++                << gMax(mag(Up))
++                << ", max iterativeMeshVelocity = " << gMax(mag(Un))
++                << ", max normalVelocityDifference = "
++                << gMax(mag(Un - (n & Up))) << endl;
++        }
++
++        if (!physicalTimeVelocity_)
++        {
++            Up += n*(Un - (n & Up));
++        }
++    }
+ 
+     vectorField::operator=(Up);
+ 
+@@ -473,6 +503,8 @@ gradientBoundaryCoeffs() const
+ void newMovingWallVelocityFvPatchVectorField::write(Ostream& os) const
+ {
+     fvPatchVectorField::write(os);
++    os.writeEntry("physicalTimeVelocity", physicalTimeVelocity_);
++    os.writeEntry("aleKinematicsDiagnostics", aleKinematicsDiagnostics_);
+ #ifdef OPENFOAM_ORG
+     writeEntry(os, "value", *this);
+ #else
+diff --git a/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.H b/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.H
+index ce718f33..b07831da 100644
+--- a/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.H
++++ b/src/solids4FoamModels/fluidModels/fvPatchFields/newMovingWallVelocity/newMovingWallVelocityFvPatchVectorField.H
+@@ -57,6 +57,13 @@ class newMovingWallVelocityFvPatchVectorField
+     // Acceleration
+     vectorField acceleration_;
+ 
++    //- Use face-centre motion between physical time levels for the complete
++    //  wall velocity. If false, retain the legacy meshPhi normal correction.
++    bool physicalTimeVelocity_;
++
++    //- Print separate physical-time and mesh-correction velocity diagnostics
++    bool aleKinematicsDiagnostics_;
++
+ public:
+ 
+     //- Runtime type information
+diff --git a/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.C b/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.C
+index 8471f81a..41233849 100644
+--- a/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.C
++++ b/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.C
+@@ -19,6 +19,7 @@ License
+ 
+ #include "neoHookeanElastic.H"
+ #include "addToRunTimeSelectionTable.H"
++#include "PstreamReduceOps.H"
+ 
+ // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+ 
+@@ -52,11 +53,21 @@ Foam::neoHookeanElastic::neoHookeanElastic
+     )
+ {
+     // Read mechanical properties
+-    if
+-    (
+-        dict.found("E") && dict.found("nu")
+-     && !dict.found("mu") && !dict.found("K")
+-    )
++    const bool hasE = dict.found("E");
++    const bool hasNu = dict.found("nu");
++    const bool hasMu = dict.found("mu");
++    const bool hasC10 = dict.found("C10");
++    const bool hasK = dict.found("K");
++
++    if (hasMu && hasC10)
++    {
++        FatalIOErrorInFunction(dict)
++            << "Ambiguous Neo-Hookean shear parameter definition: specify "
++            << "either 'mu' or 'C10', not both. When C10 is used, "
++            << "mu = 2*C10." << exit(FatalIOError);
++    }
++
++    if (hasE && hasNu && !hasMu && !hasC10 && !hasK)
+     {
+         const dimensionedScalar E = dimensionedScalar(dict.lookup("E"));
+         const dimensionedScalar nu = dimensionedScalar(dict.lookup("nu"));
+@@ -72,22 +83,78 @@ Foam::neoHookeanElastic::neoHookeanElastic
+             K_ = (nu*E/((1.0 + nu)*(1.0 - 2.0*nu))) + (2.0/3.0)*mu_;
+         }
+     }
+-    else if
+-    (
+-        dict.found("mu") && dict.found("K")
+-     && !dict.found("E") && !dict.found("nu")
+-    )
++    else if (hasK && (hasMu || hasC10) && !hasE && !hasNu)
+     {
+-        mu_ = dimensionedScalar(dict.lookup("mu"));
++        if (hasMu)
++        {
++            mu_ = dimensionedScalar(dict.lookup("mu"));
++        }
++        else
++        {
++            const dimensionedScalar C10(dict.lookup("C10"));
++
++            if (C10.dimensions() != dimPressure)
++            {
++                FatalIOErrorInFunction(dict)
++                    << "C10 must have pressure dimensions " << dimPressure
++                    << ", but has " << C10.dimensions()
++                    << exit(FatalIOError);
++            }
++
++            if (C10.value() <= 0)
++            {
++                FatalIOErrorInFunction(dict)
++                    << "C10 must be strictly positive; supplied C10 = "
++                    << C10 << exit(FatalIOError);
++            }
++
++            mu_ = 2.0*C10;
++        }
++
+         K_ = dimensionedScalar(dict.lookup("K"));
+     }
+     else
+     {
+-        FatalErrorIn(type())
+-            << "Either E and nu or mu and K should be specified"
+-            << abort(FatalError);
++        FatalIOErrorInFunction(dict)
++            << "Invalid Neo-Hookean parameter set. Specify exactly one of: "
++            << "(E and nu), (mu and K), or (C10 and K). Neither hidden "
++            << "defaults nor simultaneous mu/C10 definitions are allowed."
++            << exit(FatalIOError);
++    }
++
++    if (mu_.dimensions() != dimPressure)
++    {
++        FatalIOErrorInFunction(dict)
++            << "mu must have pressure dimensions " << dimPressure
++            << ", but has " << mu_.dimensions() << exit(FatalIOError);
++    }
++
++    if (K_.dimensions() != dimPressure)
++    {
++        FatalIOErrorInFunction(dict)
++            << "K must have pressure dimensions " << dimPressure
++            << ", but has " << K_.dimensions() << exit(FatalIOError);
++    }
++
++    if (mu_.value() <= 0)
++    {
++        FatalIOErrorInFunction(dict)
++            << "mu must be strictly positive; effective mu = " << mu_
++            << exit(FatalIOError);
+     }
+ 
++    if (K_.value() <= 0)
++    {
++        FatalIOErrorInFunction(dict)
++            << "K must be strictly positive; supplied K = " << K_
++            << exit(FatalIOError);
++    }
++
++    Info<< "Neo-Hookean properties" << nl
++        << "    mu = " << mu_.value() << " Pa" << nl
++        << "    K = " << K_.value() << " Pa" << nl
++        << "    K/mu = " << K_.value()/mu_.value() << endl;
++
+     // Store old F
+     F().storeOldTime();
+     Ff().storeOldTime();
+@@ -100,6 +167,137 @@ Foam::neoHookeanElastic::~neoHookeanElastic()
+ {}
+ 
+ 
++void Foam::neoHookeanElastic::checkJacobian(const volScalarField& J) const
++{
++    scalar localMin = GREAT;
++    label localIndex = -1;
++    label localPatch = -1;
++    vector localLocation(vector::zero);
++
++    forAll(J.primitiveField(), cellI)
++    {
++        if (J[cellI] < localMin)
++        {
++            localMin = J[cellI];
++            localIndex = cellI;
++            localPatch = -1;
++            localLocation = mesh().C()[cellI];
++        }
++    }
++
++    forAll(J.boundaryField(), patchI)
++    {
++        forAll(J.boundaryField()[patchI], faceI)
++        {
++            if (J.boundaryField()[patchI][faceI] < localMin)
++            {
++                localMin = J.boundaryField()[patchI][faceI];
++                localIndex = faceI;
++                localPatch = patchI;
++                localLocation = mesh().C().boundaryField()[patchI][faceI];
++            }
++        }
++    }
++
++    const scalar minJ = returnReduce(localMin, minOp<scalar>());
++
++    if (minJ <= 0)
++    {
++        label minProc =
++            (localMin == minJ ? Pstream::myProcNo() : labelMax);
++        minProc = returnReduce(minProc, minOp<label>());
++
++        label minIndex = Pstream::myProcNo() == minProc ? localIndex : 0;
++        label minPatch = Pstream::myProcNo() == minProc ? localPatch : 0;
++        vector minLocation =
++            Pstream::myProcNo() == minProc ? localLocation : vector::zero;
++        reduce(minIndex, sumOp<label>());
++        reduce(minPatch, sumOp<label>());
++        reduce(minLocation, sumOp<vector>());
++
++        FatalErrorInFunction
++            << "Invalid deformation in neoHookeanElastic:" << nl
++            << "det(F) must remain strictly positive before evaluating "
++            << "J^(-2/3)." << nl
++            << "Minimum J = " << minJ << nl
++            << "Time = " << mesh().time().timeName() << nl
++            << "Mechanical law = neoHookeanElastic" << nl
++            << "Processor = " << minProc << nl
++            << (minPatch < 0 ? "Local cell = " : "Local boundary face = ")
++            << minIndex << nl
++            << "Location = " << minLocation
++            << abort(FatalError);
++    }
++}
++
++
++void Foam::neoHookeanElastic::checkJacobian
++(
++    const surfaceScalarField& J
++) const
++{
++    scalar localMin = GREAT;
++    label localIndex = -1;
++    label localPatch = -1;
++    vector localLocation(vector::zero);
++
++    forAll(J.primitiveField(), faceI)
++    {
++        if (J[faceI] < localMin)
++        {
++            localMin = J[faceI];
++            localIndex = faceI;
++            localPatch = -1;
++            localLocation = mesh().Cf()[faceI];
++        }
++    }
++
++    forAll(J.boundaryField(), patchI)
++    {
++        forAll(J.boundaryField()[patchI], faceI)
++        {
++            if (J.boundaryField()[patchI][faceI] < localMin)
++            {
++                localMin = J.boundaryField()[patchI][faceI];
++                localIndex = faceI;
++                localPatch = patchI;
++                localLocation = mesh().Cf().boundaryField()[patchI][faceI];
++            }
++        }
++    }
++
++    const scalar minJ = returnReduce(localMin, minOp<scalar>());
++
++    if (minJ <= 0)
++    {
++        label minProc =
++            (localMin == minJ ? Pstream::myProcNo() : labelMax);
++        minProc = returnReduce(minProc, minOp<label>());
++
++        label minIndex = Pstream::myProcNo() == minProc ? localIndex : 0;
++        label minPatch = Pstream::myProcNo() == minProc ? localPatch : 0;
++        vector minLocation =
++            Pstream::myProcNo() == minProc ? localLocation : vector::zero;
++        reduce(minIndex, sumOp<label>());
++        reduce(minPatch, sumOp<label>());
++        reduce(minLocation, sumOp<vector>());
++
++        FatalErrorInFunction
++            << "Invalid deformation in neoHookeanElastic:" << nl
++            << "det(F) must remain strictly positive before evaluating "
++            << "J^(-2/3)." << nl
++            << "Minimum J = " << minJ << nl
++            << "Time = " << mesh().time().timeName() << nl
++            << "Mechanical law = neoHookeanElastic" << nl
++            << "Processor = " << minProc << nl
++            << (minPatch < 0 ? "Local internal face = " : "Local boundary face = ")
++            << minIndex << nl
++            << "Location = " << minLocation
++            << abort(FatalError);
++    }
++}
++
++
+ // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+ 
+ Foam::tmp<Foam::volScalarField> Foam::neoHookeanElastic::impK() const
+@@ -312,6 +510,8 @@ void Foam::neoHookeanElastic::correct(volSymmTensorField& sigma)
+     // Calculate the Jacobian of the deformation gradient
+     const volScalarField J(det(F));
+ 
++    checkJacobian(J);
++
+     // Calculate the volume preserving left Cauchy Green strain
+     const volSymmTensorField bEbar(pow(J, -2.0/3.0)*symm(F & FT));
+ 
+@@ -384,6 +584,8 @@ void Foam::neoHookeanElastic::correctF
+     // Calculate the Jacobian of the deformation gradient
+     const surfaceScalarField J(det(F));
+ 
++    checkJacobian(J);
++
+     // Calculate left Cauchy Green strain tensor with volumetric term removed
+     const surfaceSymmTensorField bEbar(pow(J, -2.0/3.0)*symm(F & FT));
+ 
+diff --git a/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.H b/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.H
+index 0e5f1982..d5f560e7 100644
+--- a/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.H
++++ b/src/solids4FoamModels/materialModels/mechanicalModel/mechanicalLaws/nonLinearGeometryLaws/neoHookeanElastic/neoHookeanElastic.H
+@@ -35,7 +35,13 @@ Description
+     If thermal stresses are active then 3.0*K*alpha*deltaT*I is added.
+ 
+     Either E (Young's modulus) and nu (Poisson's ratio) can be provided or mu
+-    (shear modulus) and K (bulk modulus)
++    (shear modulus) and K (bulk modulus). Alternatively, C10 and K can be
++    provided, in which case mu = 2*C10. All moduli have pressure dimensions.
++
++    The model is a three-dimensional, finite-strain, compressible
++    hyperelastic law. It contains no viscoelasticity, plasticity, damage,
++    rate dependence, continuous ageing law, or plane-stress approximation.
++    A non-positive J is a material inversion and is rejected without clipping.
+ 
+     Reference
+     Simo & Hughes, Computational Inelasticity, 1998, Springer.
+@@ -85,6 +91,12 @@ class neoHookeanElastic
+ 
+     // Private Member Functions
+ 
++        //- Reject material inversion before evaluating J^(-2/3)
++        void checkJacobian(const volScalarField& J) const;
++
++        //- Reject material inversion on faces before evaluating J^(-2/3)
++        void checkJacobian(const surfaceScalarField& J) const;
++
+         //- Disallow default bitwise copy construct
+         neoHookeanElastic(const neoHookeanElastic&);
+ 
+diff --git a/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.C b/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.C
+index 11bbb90c..89e038da 100644
+--- a/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.C
++++ b/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.C
+@@ -28,6 +28,7 @@ License
+ #include "symmetryFvPatchFields.H"
+ #include "slipFvPatchFields.H"
+ #include "compatibilityFunctions.H"
++#include "PstreamReduceOps.H"
+ 
+ // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+ 
+@@ -168,6 +169,137 @@ void nonLinGeomUpdatedLagSolid::enforceTractionBoundaries
+ }
+ 
+ 
++void nonLinGeomUpdatedLagSolid::writeOperatorDiagnostics
++(
++    const word& stage,
++    const scalar ddScale
++) const
++{
++    const surfaceVectorField n(mesh().Sf()/mesh().magSf());
++    const surfaceVectorField SfCurrent
++    (
++        fvc::interpolate(relJ_*relFinv_.T()) & mesh().Sf()
++    );
++    const surfaceScalarField magSfCurrent(mag(SfCurrent));
++    const surfaceVectorField nCurrent(SfCurrent/magSfCurrent);
++    surfaceVectorField tractionBase(nCurrent & fvc::interpolate(sigma()));
++    surfaceVectorField traction(tractionBase);
++    const scalar scaleFactor =
++        readScalar(stabilisation().dict().lookup("scaleFactor"));
++    const volVectorField scaledDD
++    (
++        IOobject
++        (
++            "scaledDDOperatorDiagnostic",
++            runTime().timeName(),
++            mesh(),
++            IOobject::NO_READ,
++            IOobject::NO_WRITE,
++            false
++        ),
++        ddScale*DD()
++    );
++    const surfaceTensorField gradDDf
++    (
++        ddScale*fvc::interpolate(gradDD())
++    );
++    traction +=
++        scaleFactor*impKf_*(fvc::snGrad(scaledDD) - (n & gradDDf));
++    surfaceVectorField force(magSfCurrent*traction);
++    enforceTractionBoundaries(force, DD(), nCurrent, magSfCurrent);
++    surfaceVectorField forceBase(magSfCurrent*tractionBase);
++    enforceTractionBoundaries(forceBase, DD(), nCurrent, magSfCurrent);
++
++    const tmp<volVectorField> tInternalBoundary(fvc::div(force));
++    const tmp<volVectorField> tGravity(rho_*g());
++    const tmp<volVectorField> tInertia(-rho_*fvc::d2dt2(D()));
++    vectorField internalBoundary(tInternalBoundary().primitiveField());
++    vectorField gravity(tGravity().primitiveField());
++    vectorField inertia(tInertia().primitiveField());
++    const tmp<volVectorField> tBase(fvc::div(forceBase));
++    vectorField baseResidual(tBase().primitiveField());
++    internalBoundary *= mesh().V();
++    gravity *= mesh().V();
++    inertia *= mesh().V();
++    baseResidual *= mesh().V();
++    baseResidual += gravity + inertia;
++    const vectorField stabilisationResidual
++    (
++        internalBoundary - baseResidual + gravity + inertia
++    );
++    const vectorField residual(internalBoundary + gravity + inertia);
++
++    vector boundaryForce(vector::zero);
++    vector boundaryMoment(vector::zero);
++    forAll(force.boundaryField(), patchI)
++    {
++        if (!mesh().boundary()[patchI].coupled())
++        {
++            const vectorField& fp = force.boundaryField()[patchI];
++            boundaryForce += sum(fp);
++            boundaryMoment += sum(mesh().Cf().boundaryField()[patchI] ^ fp);
++        }
++    }
++    reduce(boundaryForce, sumOp<vector>());
++    reduce(boundaryMoment, sumOp<vector>());
++
++    const scalar rL2 = sqrt(gSum(magSqr(residual)));
++    const scalar rLinf = gMax(mag(residual));
++    const scalar intL2 = sqrt(gSum(magSqr(internalBoundary)));
++    const scalar intLinf = gMax(mag(internalBoundary));
++    const scalar inertiaL2 = sqrt(gSum(magSqr(inertia)));
++    const scalar inertiaLinf = gMax(mag(inertia));
++    const scalar gravityL2 = sqrt(gSum(magSqr(gravity)));
++    const scalar baseL2 = sqrt(gSum(magSqr(baseResidual)));
++    const scalar baseLinf = gMax(mag(baseResidual));
++    const scalar stabL2 = sqrt(gSum(magSqr(stabilisationResidual)));
++    const scalar stabLinf = gMax(mag(stabilisationResidual));
++    const scalar baseStabDot = gSum(baseResidual & stabilisationResidual);
++    const scalar cosTheta =
++        baseStabDot/(max(baseL2*stabL2, VSMALL));
++    const scalar aStab = stabL2/max(baseL2, VSMALL);
++    const scalar cStab = rL2/max(baseL2, VSMALL);
++    const scalar dMax = gMax(mag(D().primitiveField()));
++    const scalar ddMax = gMax(mag(DD().primitiveField()));
++    const scalar fL2 = sqrt(gSum(magSqr(F_.primitiveField())));
++    const scalar sigmaL2 = sqrt(gSum(magSqr(sigma().primitiveField())));
++    const scalar jMin = gMin(J_.primitiveField());
++    const scalar jMax = gMax(J_.primitiveField());
++    const scalar uMax = gMax(mag(U().primitiveField()));
++    const scalar aMax = gMax(mag(A_.primitiveField()));
++
++    Info<< "STRUCTURAL_OPERATOR_DIAGNOSTIC"
++        << " stage=" << stage
++        << " time=" << runTime().timeName()
++        << " DDscale=" << ddScale
++        << " RmomL2_N=" << rL2
++        << " RmomLinf_N=" << rLinf
++        << " RinternalBoundaryL2_N=" << intL2
++        << " RinternalBoundaryLinf_N=" << intLinf
++        << " RinertiaL2_N=" << inertiaL2
++        << " RinertiaLinf_N=" << inertiaLinf
++        << " RgravityL2_N=" << gravityL2
++        << " RbaseL2_N=" << baseL2
++        << " RbaseLinf_N=" << baseLinf
++        << " RstabilisationL2_N=" << stabL2
++        << " RstabilisationLinf_N=" << stabLinf
++        << " Astab=" << aStab
++        << " Cstab=" << cStab
++        << " cosTheta=" << cosTheta
++        << " boundaryForce_N=" << boundaryForce
++        << " boundaryMoment_Nm=" << boundaryMoment
++        << " Dmax_m=" << dMax
++        << " DDmax_m=" << ddMax
++        << " F_L2=" << fL2
++        << " sigmaL2_Pa=" << sigmaL2
++        << " Jmin=" << jMin
++        << " Jmax=" << jMax
++        << " Umax_mps=" << uMax
++        << " Amax_mps2=" << aMax
++        << endl;
++}
++
++
+ bool nonLinGeomUpdatedLagSolid::evolveImplicitSegregated()
+ {
+    Info<< "Evolving solid solver using an implicit segregated approach"
+@@ -276,6 +408,23 @@ bool nonLinGeomUpdatedLagSolid::evolveImplicitSegregated()
+ 
+         // Calculate the stress using run-time selectable mechanical law
+         mechanical().correct(sigma());
++
++        const label diagnosticInterval =
++            solidModelDict().lookupOrDefault<label>
++            (
++                "structuralOperatorDiagnosticInterval", 0
++            );
++        if
++        (
++            diagnosticInterval > 0
++         && (iCorr % diagnosticInterval) == 0
++        )
++        {
++            writeOperatorDiagnostics
++            (
++                "corrector-" + Foam::name(iCorr)
++            );
++        }
+     }
+     while
+     (
+@@ -629,6 +778,29 @@ nonLinGeomUpdatedLagSolid::nonLinGeomUpdatedLagSolid
+             }
+         }
+     }
++
++    if
++    (
++        solidModelDict().lookupOrDefault<Switch>
++        (
++            "structuralOperatorDiagnostics", false
++        )
++    )
++    {
++        const scalarList ddScales
++        (
++            solidModelDict().lookupOrDefault<scalarList>
++            (
++                "structuralOperatorDDScales",
++                scalarList(1, 1.0)
++            )
++        );
++        forAll(ddScales, scaleI)
++        {
++            writeOperatorDiagnostics("constructor-1", ddScales[scaleI]);
++        }
++        writeOperatorDiagnostics("constructor-2");
++    }
+ }
+ 
+ 
+@@ -806,6 +978,21 @@ label nonLinGeomUpdatedLagSolid::formResidual
+       : makeList<label>({0,1,2})
+     );
+ 
++    if
++    (
++        solidModelDict().lookupOrDefault<Switch>
++        (
++            "structuralOperatorDiagnostics", false
++        )
++    )
++    {
++        static label snesResidualCall = 0;
++        writeOperatorDiagnostics
++        (
++            word("snesResidual-" + Foam::name(snesResidualCall++))
++        );
++    }
++
+     if (solvePressure())
+     {
+         notImplemented("Not implemented for active 'solvePressure'");
+diff --git a/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.H b/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.H
+index 252fda7c..6d93ddf5 100644
+--- a/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.H
++++ b/src/solids4FoamModels/solidModels/nonLinGeomUpdatedLagSolid/nonLinGeomUpdatedLagSolid.H
+@@ -123,6 +123,13 @@ class nonLinGeomUpdatedLagSolid
+         //- Evolve the solid solver using the segregated implicit approach
+         bool evolveImplicitSegregated();
+ 
++        //- Print a non-mutating decomposition of the frozen momentum residual
++        void writeOperatorDiagnostics
++        (
++            const word& stage,
++            const scalar ddScale = 1.0
++        ) const;
++
+         //- Evolve the solid solver using the PETSc nonlinear solver (SNES)
+         //  A compact approximate Jacobian (same one as used by the segregated
+         //  approach) is provided to PETSc. A Jacobian-free Krylov-Newton method

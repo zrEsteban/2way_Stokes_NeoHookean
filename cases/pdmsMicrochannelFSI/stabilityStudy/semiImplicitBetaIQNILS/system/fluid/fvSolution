@@ -1,0 +1,86 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| solids4foam: solid mechanics and fluid-solid interaction simulations        |
+| Version:     v2.3                                                           |
+| Web:         https://solids4foam.github.io                                  |
+| Disclaimer:  This offering is not approved or endorsed by OpenCFD Limited,  |
+|              producer and distributor of the OpenFOAM software via          |
+|              www.openfoam.com, and owner of the OPENFOAM® and OpenCFD®      |
+|              trade marks.                                                   |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p
+    {
+        solver          GAMG;
+        tolerance       1e-05;
+        relTol          0.05;
+        minIter         1;
+        maxIter         200;
+        smoother        GaussSeidel;
+        nPreSweeps      0;
+        nPostSweeps     2;
+        nFinestSweeps   2;
+        scaleCorrection true;
+        directSolveCoarsest false;
+        cacheAgglomeration true;
+        nCellsInCoarsestLevel 20;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
+    }
+
+    pFinal
+    {
+        $p;
+        tolerance       1e-05;
+        relTol          0;
+        maxIter         1000;
+    }
+
+    cellMotionU
+    {
+        solver          GAMG;
+        tolerance       1e-06;
+        relTol          0;
+        minIter         1;
+        maxIter         1000;
+        smoother        GaussSeidel;
+        nPreSweeps      0;
+        nPostSweeps     2;
+        nFinestSweeps   2;
+        scaleCorrection true;
+        directSolveCoarsest false;
+        cacheAgglomeration true;
+        nCellsInCoarsestLevel 20;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
+    }
+
+    "U|UFinal"
+    {
+        solver          PBiCG;
+        preconditioner  DILU;
+        tolerance       1e-06;
+        relTol          0;
+        minIter         1;
+        maxIter         2000;
+    }
+}
+
+PIMPLE
+{
+    momentumPredictor   on;
+    nOuterCorrectors    1;
+    nCorrectors         3;
+    nNonOrthogonalCorrectors 1;
+}
+
+// ************************************************************************* //

@@ -3,13 +3,14 @@
 Fecha: 2026-08-25 (America/Santiago)  
 Baseline: `846a5f0a3f6d3abc9ffc32e83d4c96dc4fe7eb69` (`main` y
 `origin/main` antes de este informe)  
-Resultado global: **FAIL**
+Resultado global tras G0-E-R: **FAIL por el mínimo MPI**
 
-G0 no autoriza cambios en el código ni en el algoritmo FSI. El único cambio
-del repositorio producido por este gate es este informe. La validación encontró
-un mínimo reproducible correcto hasta `1e-6 s`, pero el baseline configurado
-hasta `1e-4 s` abortó reproduciblemente en `1.1e-6 s`; por ello no se aprueba
-el gate de estabilidad y no se debe comenzar G1.
+G0 no autoriza cambios en el algoritmo FSI. La remediación posterior versionó
+el caso y aisló su procedencia; véase
+`docs/G0-E-openfoam-environment-isolation.md`. El fallo fuerte en `1.1e-6 s`
+es el baseline inestable conocido y su reproducción es PASS. Alcanzar
+`1e-4 s` se trasladó explícitamente a G7. G0 permanece FAIL porque el mínimo
+MPI aislado no termina, no por el fallo fuerte.
 
 ## Control de versiones y alcance
 
@@ -207,31 +208,26 @@ serial/MPI pasa dentro de la tolerancia definida.
 | Build del acoplador | PASS | build limpio controlado, exit 0 |
 | Build del sólido deal.II | PASS | configure/build exit 0; CTest 1/1 |
 | Caso mínimo | PASS | 10 pasos, `End`, gates físicos y geométrico aprobados |
-| Baseline estable | **FAIL** | aborta en paso 11, ratio físico 3.212720779 |
+| Baseline estable mínimo serial | PASS | termina 10 pasos con `End` |
+| Baseline fuerte conocido | PASS reproducibilidad | mismo aborto esperado en paso 11; convergencia a `1e-4` pertenece a G7 |
 | Dos ejecuciones equivalentes | PASS | mismo fallo, residuos y CSV idénticos |
 | Sin NaN/Inf | PASS | cero ocurrencias en cuatro logs |
 | Artefactos correctamente ignorados | PASS | `git status --short` vacío tras ejecutar |
 | Comandos y versiones documentados | PASS | secciones anteriores |
-| Serial/MPI | PASS | 4 ranks, descomposición declarada, `End`, errores < `5e-5` relativos |
+| Serial/MPI | **FAIL** | build aislado: MPI aborta en `8e-7`, 100 correctores, ratio 5.419727823 |
 
 ## Riesgos y limitaciones abiertos
 
-1. El baseline configurado no es estable más allá de 10 pasos: FAIL bloqueante.
-2. El caso está fuera de Git por `cases/`; el commit baseline por sí solo no lo
-   reproduce.
-3. solids4foam es un repositorio externo dirty; su binario/biblioteca no queda
-   identificado únicamente por el commit anotado.
-4. `Make/options` fija `S4F_ROOT` a una ruta personal y el caso fija rutas
-   absolutas; la portabilidad depende de reescrituras controladas.
-5. PETSc tiene dos versiones efectivas: solids4foam usa 3.25.3 y deal.II enlaza
-   la 3.15.5 del sistema; no produjo fallo aquí, pero debe conservarse explícito.
-6. Los avisos `wmkdepend` y deprecaciones TBB/Boost no impiden el build, pero
+1. El mínimo MPI aislado no supera el gate físico en `8e-7`.
+2. El fuerte sigue siendo inestable por diseño del baseline; resolverlo es G7.
+3. PETSc 3.25.3 sigue siendo una dependencia externa, aunque su versión y
+   procedencia están fijadas y separadas de PETSc 3.15.5 de deal.II.
+4. Los avisos `wmkdepend` y deprecaciones TBB/Boost no impiden el build, pero
    reducen la limpieza del diagnóstico.
 
 ## Siguiente gate propuesto (no ejecutado)
 
-No comenzar G1. El siguiente paso debe ser un **G0 de remediación y
-revalidación**, primero haciendo versionables/portables el caso y el manifiesto
-del entorno externo, y luego corrigiendo o justificando la pérdida de
-convergencia física en el paso 11. Sólo después deben repetirse exactamente los
-ensayos seriales y MPI de este informe y exigirse `End` en `1e-4 s`.
+No comenzar G1. El siguiente paso recomendado es diagnosticar, sin cambiar aún
+la formulación, por qué la descomposición MPI aislada pierde el gate físico en
+`8e-7`. La estabilización de masa agregada y la exigencia de `End` en `1e-4 s`
+permanecen reservadas para G7.

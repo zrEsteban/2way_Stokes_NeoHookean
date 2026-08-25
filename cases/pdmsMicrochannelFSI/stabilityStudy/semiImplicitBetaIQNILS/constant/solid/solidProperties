@@ -1,0 +1,17 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object solidProperties;
+}
+
+solidModel nonLinearGeometryUpdatedLagrangian;
+nonLinearGeometryUpdatedLagrangianCoeffs
+{
+ nCorrectors 20000;
+ solutionTolerance 1e-6;
+ alternativeTolerance 2e-4;
+ materialTolerance 1e-6;
+ infoFrequency 100;
+}

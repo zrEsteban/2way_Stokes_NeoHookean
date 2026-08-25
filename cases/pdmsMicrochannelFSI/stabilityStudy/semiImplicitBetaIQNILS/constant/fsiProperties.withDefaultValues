@@ -1,0 +1,75 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    arch        "LSB;label=32;scalar=64";
+    class       robinRobin;
+    location    "constant";
+    object      fsiProperties.withDefaultValues;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+fluidSolidInterface robinRobin;
+
+robinRobinCoeffs
+{
+    couplingScheme  semiImplicitBeta;
+    semiImplicitBeta 1;
+    solidPatch      interface;
+    fluidPatch      interface;
+    relaxationFactor 0.25;
+    accelerationMethod iqnils;
+    relaxationFactorMin 0.01;
+    relaxationFactorMax 0.5;
+    iqnMaxModes     12;
+    iqnReuseAcrossTimeSteps no;
+    iqnModeFilterTolerance 1e-08;
+    iqnMaxCorrectionFactor 0.25;
+    robinDataRelaxationFactor 1;
+    predictSolid    no;
+    useDealII       yes;
+    dealIIImpedance 0;
+    dealIIInput     "dealiiSolid/robin-in.csv";
+    dealIIQueryInput "dealiiSolid/robin-query.csv";
+    dealIIOutput    "dealiiSolid/robin-out.csv";
+    dealIICommand   "$DEALII_PDMS_SOLID_BIN dealiiSolid/solid.prm";
+    dealIIAcceptCommand "cp dealiiSolid/trial-state.bin dealiiSolid/accepted-state.bin";
+    robinVelocityTolerance 0.0001;
+    robinForceTolerance 0.0001;
+    robinPowerTolerance 0.001;
+    robinVelocityScale 0.00303030303;
+    robinTractionScale 100;
+    interfaceDeformationLimit 0;
+    interpolatorUpdateFrequency 0;
+    outerCorrTolerance 0.0001;
+    nOuterCorr      100;
+    coupled         yes;
+    couplingStartTime -1;
+    writeResidualsToFile yes;
+    additionalMeshCorrection false;
+    predictor       false;
+    incrementalResiduals true;
+    GGICoeffs
+    {
+    }
+    AMICoeffs
+    {
+    }
+    RBFCoeffs
+    {
+    }
+    directMapCoeffs
+    {
+    }
+    interfaceTransferMethod AMI;
+}
+
+
+// ************************************************************************* //

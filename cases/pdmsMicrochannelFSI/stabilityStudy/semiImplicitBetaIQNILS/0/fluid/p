@@ -1,0 +1,49 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+FoamFile
+{
+    version         2;
+    format          ascii;
+    arch            "LSB;label=32;scalar=64";
+    class           volScalarField;
+    location        "252";
+    object          p;
+}
+
+dimensions      [ 0 2 -2 0 0 0 0 ];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    inlet
+    {
+        type            zeroGradient;
+    }
+    glass
+    {
+        type            zeroGradient;
+    }
+    interface
+    {
+        type            pdmsElasticWallPressure;
+        // Half the characteristic wave depth ap*dt at dt=1e-7. This preserves
+        // the validated effective impedance of 33649.38335 Pa s/m.
+        constantHs      3.469008593e-06;
+        value           uniform 0;
+    }
+    outlet
+    {
+        type            fixedValue;
+        value           uniform 0;
+    }
+}
+
+
+// ************************************************************************* //

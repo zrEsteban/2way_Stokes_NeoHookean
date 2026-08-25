@@ -1,0 +1,11 @@
+L=0.00492;
+w=0.000492;
+h=3.3e-05;
+r=7.5e-07;
+t=0.0005;
+e=0.0005;
+nx=3;
+lcNear=5e-06;
+lcFar=0.0001;
+allHex=1;
+Include "roundedSolid.geo";

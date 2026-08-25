@@ -1,4 +1,8 @@
-S4F_ROOT = /home/ezamora/Workspace/solids4foam
+S4F_ROOT ?= $(SOLIDS4FOAM_ROOT)
+
+ifeq ($(strip $(S4F_ROOT)),)
+    $(error S4F_ROOT must point to the fixed solids4foam checkout)
+endif
 
 EXE_INC = \
     -Wno-old-style-cast -Wno-deprecated-declarations \
@@ -11,4 +15,3 @@ LIB_LIBS = \
     -lsolids4FoamModels \
     -lfiniteVolume \
     -lmeshTools
-

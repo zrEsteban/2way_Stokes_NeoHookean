@@ -1,0 +1,22 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object controlDict;
+}
+
+application solids4Foam;
+libs (libfiveParameterMooneyRivlinElastic.so librobinRobinCoupling.so);
+// Long transient after the ten-step semi-implicit beta/IQN gate passed.
+// latestTime keeps OpenFOAM and the accepted deal.II state synchronized.
+startFrom startTime; startTime 0; stopAt endTime; endTime 1e-04;
+deltaT 1e-07;
+// Writing every time step would create five million directories. Keep 50
+// physical-time snapshots instead.
+writeControl adjustableRunTime; writeInterval 1e-06; purgeWrite 0;
+writeFormat ascii; writePrecision 10; writeCompression off;
+timeFormat general; timePrecision 10; runTimeModifiable yes;
+// deal.II currently uses the same fixed dt from solid.prm, so adaptive stepping
+// is disabled to prevent temporal desynchronisation between participants.
+adjustTimeStep no; maxCo 0.5; maxAlphaCo 0.25; maxDeltaT 1e-07;

@@ -6,9 +6,54 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 compile_commands.json
+external/solids4foam/source/
 
 # OpenFOAM
-cases/
+# Keep unrelated local case collections out of this baseline while allowing the
+# single G0 strong case below to be versioned explicitly.
+cases/pdmsMicrochannelFluidSteady/
+cases/pdmsMicrochannelOneWay/
+cases/pdmsMicrochannelSolidPressure/
+cases/pdmsMicrochannelFSI/AUDITORIA_CASO_PDMS_MICROCHANNEL_FSI.md
+cases/pdmsMicrochannelFSI/README.md
+cases/pdmsMicrochannelFSI/common/
+cases/pdmsMicrochannelFSI/dealii/
+cases/pdmsMicrochannelFSI/reports/
+cases/pdmsMicrochannelFSI/runHistory/
+cases/pdmsMicrochannelFSI/scripts/
+cases/pdmsMicrochannelFSI/singlePhase/
+cases/pdmsMicrochannelFSI/tests/
+cases/pdmsMicrochannelFSI/twoPhase/
+cases/pdmsMicrochannelFSI/stabilityStudy/3dTube-tutorial/
+cases/pdmsMicrochannelFSI/stabilityStudy/dirichletNeumannIQNILS/
+cases/pdmsMicrochannelFSI/stabilityStudy/improved-interface/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseB-solidPreload/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseC-interfaceOperator/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD1-ALEfix/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD2a-structuralRestart/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD2b-trueEquilibrium/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD2c-structuralOperatorAudit/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD2d-stationaryStabilization/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD2e-structuralSolver/
+cases/pdmsMicrochannelFSI/stabilityStudy/phaseD2f-physicalTangentAudit/
+cases/pdmsMicrochannelFSI/stabilityStudy/robinRobinIQNILSCombined/
+cases/pdmsMicrochannelFSI/stabilityStudy/robinRobinSmoke/
+
+# Generated content of the versioned G0 strong case.
+cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/*/
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/0/
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/0/**
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/constant/
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/constant/**
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/system/
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/system/**
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/**
+cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/constant/*/polyMesh/
+cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/*.msh
+cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/*.csv
+cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/*state.bin
+cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/run.pid
 validation/
 platforms/
 lnInclude/

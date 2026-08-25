@@ -1,0 +1,42 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volVectorField;
+    object DD;
+}
+
+dimensions [0 1 0 0 0 0 0];
+internalField uniform (0 0 0);
+boundaryField
+{
+    interface
+    {
+        type solidRobinTractionVelocity;
+        traction uniform (0 0 0);
+        pressure uniform 0;
+        robinTraction uniform (0 0 0);
+        targetVelocity uniform (0 0 0);
+        solidImpedance solidImpedance [1 -2 -1 0 0 0 0] 67350;
+        value uniform (0 0 0);
+    }
+    base
+    {
+        type fixedDisplacement;
+        value uniform (0 0 0);
+    }
+    outer
+    {
+        type solidTraction;
+        traction uniform (0 0 0);
+        pressure uniform 0;
+        value uniform (0 0 0);
+    }
+    ends
+    {
+        type solidTraction;
+        traction uniform (0 0 0);
+        pressure uniform 0;
+        value uniform (0 0 0);
+    }
+}
