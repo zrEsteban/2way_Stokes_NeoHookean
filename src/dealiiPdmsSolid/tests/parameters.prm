@@ -1,0 +1,15 @@
+set mesh = solid.msh
+set input = robin-in.csv
+set output = robin-out.csv
+set vtk output = solid.vtu
+set rho = 970
+set mu = 778200
+set bulk modulus = 3631600
+set delta t = 1e-7
+set time integration = bdf2
+set solid impedance = 67350
+set interface boundary = 3
+set clamped boundary 1 = 1
+set clamped boundary 2 = 2
+set clamped boundary 3 = 2
+set state output = solid-state.bin

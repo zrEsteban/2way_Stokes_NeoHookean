@@ -1,0 +1,8 @@
+tests=PASS
+youngMu0=778200
+agedMu0=180400
+youngInitialTangent=2334600
+agedInitialTangent=541200.000003
+maxEnergyRelativeError=0.000236792807537
+maxStressRelativeError=0.000236792807537
+maxTangentRelativeError=4.45439218498e-08

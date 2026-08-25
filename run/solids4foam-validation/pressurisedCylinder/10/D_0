@@ -1,0 +1,116 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    arch        "LSB;label=32;scalar=64";
+    class       volVectorField;
+    location    "10";
+    object      D_0;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 0 0 0 0 0];
+
+internalField   uniform (0 0 0);
+
+boundaryField
+{
+    bottom
+    {
+        type            empty;
+    }
+    top
+    {
+        type            empty;
+    }
+    inner-wall
+    {
+        type            solidTraction;
+        nonOrthogonalCorrections true;
+        useUndeformedArea false;
+        traction        uniform (0 0 0);
+        pressureSeries  
+{
+        file            "$FOAM_CASE/constant/timeVsPressure";
+        outOfBounds     clamp;
+}
+        secondOrder     false;
+        extrapolateValue false;
+        setEffectiveTraction false;
+        relaxationFactor 1;
+        value           nonuniform List<vector> 
+30
+(
+(0.000177774 4.63399e-06 5.26095e-23)
+(0.000177287 1.3933e-05 0)
+(0.000176315 2.31938e-05 4.20874e-22)
+(0.000174859 3.2391e-05 0)
+(0.000172923 4.14994e-05 0)
+(0.000170514 5.0494e-05 -8.41745e-22)
+(0.000167637 5.93501e-05 0)
+(0.0001643 6.80434e-05 0)
+(0.000160513 7.65502e-05 -8.41743e-22)
+(0.000156286 8.48471e-05 0)
+(0.00015163 9.29114e-05 0)
+(0.000146559 0.000100721 1.68348e-21)
+(0.000141086 0.000108254 0)
+(0.000135226 0.000115491 -1.68348e-21)
+(0.000128995 0.000122411 0)
+(0.000122411 0.000128995 0)
+(0.000115491 0.000135226 1.68348e-21)
+(0.000108254 0.000141086 0)
+(0.000100721 0.000146559 0)
+(9.29114e-05 0.00015163 0)
+(8.48471e-05 0.000156286 0)
+(7.65502e-05 0.000160513 8.41743e-22)
+(6.80434e-05 0.0001643 0)
+(5.93501e-05 0.000167637 0)
+(5.0494e-05 0.000170514 8.41745e-22)
+(4.14994e-05 0.000172923 0)
+(3.2391e-05 0.000174859 0)
+(2.31938e-05 0.000176315 -4.20874e-22)
+(1.3933e-05 0.000177287 0)
+(4.63399e-06 0.000177774 -5.26095e-23)
+)
+;
+        gradient        uniform (0 0 0);
+    }
+    outer-wall
+    {
+        type            solidTraction;
+        nonOrthogonalCorrections true;
+        useUndeformedArea false;
+        traction        uniform (0 0 0);
+        pressure        uniform 0;
+        secondOrder     false;
+        extrapolateValue false;
+        setEffectiveTraction false;
+        relaxationFactor 1;
+        value           uniform (0 0 0);
+        gradient        uniform (0 0 0);
+    }
+    symmetry-x
+    {
+        type            solidSymmetry;
+        patchType       symmetry;
+        secondOrder     false;
+        value           uniform (0 0 0);
+    }
+    symmetry-y
+    {
+        type            solidSymmetry;
+        patchType       symmetry;
+        secondOrder     false;
+        value           uniform (0 0 0);
+    }
+}
+
+
+// ************************************************************************* //

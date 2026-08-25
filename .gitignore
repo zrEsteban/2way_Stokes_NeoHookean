@@ -1,0 +1,36 @@
+# Compilación
+build/
+build-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# OpenFOAM
+cases/
+platforms/
+lnInclude/
+processor*/
+postProcessing/
+VTK/
+log.*
+*.log
+
+# Binarios
+*.o
+*.so
+*.a
+*.dep
+
+# Resultados deal.II
+*.vtu
+*.pvtu
+*.pvd
+
+# Temporales
+*~
+*.swp
+*.tmp
+__pycache__/
+*.pyc

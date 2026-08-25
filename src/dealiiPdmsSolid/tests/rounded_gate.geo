@@ -1,0 +1,11 @@
+L=0.0002;
+w=0.0001;
+h=0.00003;
+r=0.000005;
+t=0.00005;
+e=0.00005;
+nx=2;
+lcNear=0.000005;
+lcFar=0.000025;
+allHex=1;
+Include "../../../cases/pdmsMicrochannelFSI/scripts/roundedSolid.geo";
