@@ -21,6 +21,10 @@ add_executable(testInterfaceSparsity tests/test_interface_sparsity.cc)
 target_include_directories(testInterfaceSparsity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 deal_ii_setup_target(testInterfaceSparsity)
 
+add_executable(testRuntimeNewton tests/test_runtime_newton.cc)
+target_include_directories(testRuntimeNewton PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+deal_ii_setup_target(testRuntimeNewton)
+
 enable_testing()
 add_test(NAME neo_hookean_material COMMAND testNeoHookean)
 add_test(NAME time_integration COMMAND testTimeIntegration)

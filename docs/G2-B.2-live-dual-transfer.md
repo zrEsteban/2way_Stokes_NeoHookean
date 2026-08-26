@@ -4,7 +4,8 @@ Fecha: 2026-08-26
 
 Commit de entrada: `f88684c877ee91a88f14356a1c7ee939c6652a66`
 
-Estado: **BLOCKED en preflight; G2-B.2 no ejecutado**
+Estado histórico: **BLOCKED en preflight; bloqueo corregido posteriormente por
+G2-B.1-RUNTIME. G2-B.2 continúa pendiente y no fue reintentado.**
 
 ## Resultado del preflight obligatorio
 
@@ -94,3 +95,10 @@ rg -n 'dualConservative production transport|assemble_newton' \
 ```
 
 No se inicia G3.
+
+## Resolución del bloqueo
+
+G2-B.1-RUNTIME conectó `GeneralizedLoad` a `PdmsSolid::assemble_newton()` y
+validó el camino real en serial/MPI. Por tanto, el bloqueo descrito aquí ya no
+impide reabrir G2-B.2 en un gate posterior. Este trabajo no reintentó handshake
+ni modificó el acoplador fluido.

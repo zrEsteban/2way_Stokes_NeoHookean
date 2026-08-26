@@ -216,3 +216,11 @@ error de trabajo `2,333e-15`. Legacy conserva 322.992 nonzeros y sus SHA-256.
 Estado final actualizado: **G2-B.1 PASS**. Detalles en
 `docs/G2-B.1-generalized-load-protocol.md`. Producción sigue legacy; G2-B.2 y
 G3 no se iniciaron.
+
+## Integración runtime posterior
+
+`PdmsSolid::assemble_newton()` ya aplica directamente fuerza y tangente
+generalizadas en la rama dual, separada de la cuadratura legacy. La prueba real
+da `rhs=1` para una fuerza nodal unitaria, error de repetición cero y diferencia
+finita `1,02721e-11` en serial/MPI. G2-B.1 es PASS únicamente con esta evidencia
+runtime; véase `docs/G2-B.1-runtime-newton-integration.md`.

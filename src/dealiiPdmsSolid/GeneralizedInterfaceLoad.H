@@ -6,6 +6,7 @@
 #include <deal.II/lac/vector.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
@@ -105,16 +106,24 @@ public:
           dealii::ExcMessage("duplicate generalized force DoF"));
         for (const auto &i:interface_sparsity::constraint_expansion(v.dof,constraints))
           force_values.emplace_back(i.first,i.second*v.value); }
-    std::set<std::pair<global_dof_index,global_dof_index>> tangent_ids;
+    std::map<std::pair<global_dof_index,global_dof_index>,double> tangent_ids;
     for (const auto &v:tangent.values)
       { validate_dof(v.row,components.at(v.row)); validate_dof(v.column,components.at(v.column));
-        AssertThrow(tangent_ids.emplace(v.row,v.column).second,
+        AssertThrow(tangent_ids.emplace(std::make_pair(v.row,v.column),v.value).second,
                     dealii::ExcMessage("duplicate generalized tangent entry"));
         for (const auto &i:interface_sparsity::constraint_expansion(v.row,constraints))
           for (const auto &j:interface_sparsity::constraint_expansion(v.column,constraints))
             { AssertThrow(pattern.exists(i.first,j.first),
                           dealii::ExcMessage("generalized tangent outside sparsity pattern"));
               tangent_values.push_back({i.first,j.first,i.second*j.second*v.value}); }
+      }
+    for (const auto &entry:tangent_ids)
+      {
+        const auto reverse=tangent_ids.find({entry.first.second,entry.first.first});
+        AssertThrow(reverse!=tangent_ids.end() &&
+                    std::abs(reverse->second-entry.second)<=
+                      1e-13*std::max({std::abs(reverse->second),std::abs(entry.second),1.0}),
+                    dealii::ExcMessage("generalized tangent is not symmetric"));
       }
     received=true;
   }
@@ -126,6 +135,8 @@ public:
     for (const auto &v:tangent_values) jacobian.add(v.row,v.column,v.value); // J=Js+J_Gamma
   }
   bool is_received() const { return received; }
+  void clear_provisional()
+  { received=false; force_values.clear(); tangent_values.clear(); }
 
 private:
   void validate_dof(const global_dof_index id,const unsigned int component) const

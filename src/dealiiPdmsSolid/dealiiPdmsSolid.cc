@@ -24,6 +24,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -31,6 +32,7 @@
 #include "NeoHookeanMaterial.H"
 #include "TimeIntegration.H"
 #include "InterfaceSparsityExtension.H"
+#include "GeneralizedInterfaceLoad.H"
 
 using namespace dealii;
 
@@ -120,8 +122,64 @@ public:
   explicit PdmsSolid(ParameterHandler &parameters)
     : prm(parameters), fe(FE_Q<dim>(1), dim), dofs(mesh) {}
   void run();
+  void initialize_runtime() { read_mesh(); setup(); }
+  void set_generalized_interface_data(
+    const generalized_interface::ForceMessage &force,
+    const generalized_interface::TangentMessage &tangent)
+  {
+    set_generalized_interface_load(force);
+    set_generalized_interface_tangent(tangent);
+  }
+  void set_generalized_interface_load(const generalized_interface::ForceMessage &force)
+  {
+    AssertThrow(generalized_load && runtime_expected,
+                ExcMessage("load received before generalized manifest/runtime"));
+    generalized_interface::validate_stamp(force.stamp,*runtime_expected);
+    AssertThrow(force.units=="N" && force.checksum==generalized_interface::checksum(force),
+                ExcMessage("invalid generalized force units/checksum"));
+    provisional_force=std::make_unique<generalized_interface::ForceMessage>(force);
+    receive_generalized_pair_if_complete();
+  }
+  void set_generalized_interface_tangent(const generalized_interface::TangentMessage &tangent)
+  {
+    AssertThrow(generalized_load && runtime_expected,
+                ExcMessage("tangent received before generalized manifest/runtime"));
+    generalized_interface::validate_stamp(tangent.stamp,*runtime_expected);
+    AssertThrow(tangent.units=="N/m" && tangent.checksum==generalized_interface::checksum(tangent),
+                ExcMessage("invalid generalized tangent units/checksum"));
+    provisional_tangent=std::make_unique<generalized_interface::TangentMessage>(tangent);
+    receive_generalized_pair_if_complete();
+  }
+  void clear_provisional_generalized_interface_state()
+  {
+    provisional_force.reset(); provisional_tangent.reset();
+    if (generalized_load) generalized_load->clear_provisional();
+  }
+  void begin_generalized_interface_corrector(const generalized_interface::Expected &expected)
+  {
+    AssertThrow(runtime_expected && expected.hash_graph==runtime_expected->hash_graph,
+                ExcMessage("hashGraph change after SparseMatrix::reinit is forbidden"));
+    clear_provisional_generalized_interface_state();
+    runtime_expected=std::make_unique<generalized_interface::Expected>(expected);
+    generalized_load=std::make_unique<generalized_interface::GeneralizedLoad>(
+      constraints,sparsity,interface_components,*runtime_expected);
+  }
+  double assemble_runtime(const std::vector<Sample> &samples)
+  { return assemble_newton(samples); }
+  const Vector<double> &runtime_rhs() const { return rhs; }
+  const SparseMatrix<double> &runtime_matrix() const { return matrix; }
+  Vector<double> &runtime_solution() { return solution; }
+  const std::vector<std::array<types::global_dof_index,dim>> &runtime_node_dofs() const
+  { return interface_node_dofs; }
+  const AffineConstraints<double> &runtime_constraints() const { return constraints; }
+  const SparsityPattern &runtime_sparsity() const { return sparsity; }
 
 private:
+  void receive_generalized_pair_if_complete()
+  {
+    if (provisional_force && provisional_tangent)
+      generalized_load->receive(*provisional_force,*provisional_tangent);
+  }
   void read_mesh();
   void setup();
   double assemble_newton(const std::vector<Sample> &samples);
@@ -141,6 +199,12 @@ private:
   Vector<double> solution, old_solution, old_velocity;
   Vector<double> older_solution, older_velocity, rhs;
   unsigned int history_depth = 0;
+  std::vector<unsigned int> interface_components;
+  std::vector<std::array<types::global_dof_index,dim>> interface_node_dofs;
+  std::unique_ptr<generalized_interface::GeneralizedLoad> generalized_load;
+  std::unique_ptr<generalized_interface::Expected> runtime_expected;
+  std::unique_ptr<generalized_interface::ForceMessage> provisional_force;
+  std::unique_ptr<generalized_interface::TangentMessage> provisional_tangent;
 };
 
 void PdmsSolid::read_mesh()
@@ -173,15 +237,35 @@ void PdmsSolid::setup()
       AssertThrow(!expected_hash.empty() && manifest.hash_graph==expected_hash,
                   ExcMessage("interface manifest hashGraph mismatch"));
       const auto node_dofs=interface_sparsity::map_nodes_to_dofs<dim>(manifest,dofs);
+      interface_node_dofs=node_dofs;
       const auto stats=interface_sparsity::augment_interface_sparsity<dim>(
         dsp,manifest,node_dofs,constraints);
       AssertThrow(stats.final_missing==0,ExcMessage("Incomplete dual interface sparsity"));
       std::cout << "Dual interface graph prepared before SparseMatrix::reinit: hashGraph="
                 << manifest.hash_graph << ", required=" << stats.required
                 << ", added=" << stats.added << std::endl;
+      interface_components.assign(dofs.n_dofs(),numbers::invalid_unsigned_int);
+      for (const auto &node:node_dofs)
+        for (unsigned int component=0;component<dim;++component)
+          interface_components[node[component]]=component;
     }
   sparsity.copy_from(dsp);
   matrix.reinit(sparsity);
+  if (transfer=="dualConservative")
+    {
+      generalized_interface::Expected expected{
+        static_cast<unsigned int>(prm.get_integer("interface time index")),
+        static_cast<unsigned int>(prm.get_integer("interface outer corrector")),
+        static_cast<std::uint64_t>(prm.get_integer("interface operator version")),
+        static_cast<std::uint64_t>(prm.get_integer("interface z version")),
+        prm.get("interface graph hash"),prm.get("interface weights hash"),
+        prm.get("interface dof manifest hash")};
+      AssertThrow(!expected.hash_weights.empty() && !expected.dof_manifest_hash.empty(),
+                  ExcMessage("dualConservative requires all runtime hashes"));
+      runtime_expected=std::make_unique<generalized_interface::Expected>(expected);
+      generalized_load=std::make_unique<generalized_interface::GeneralizedLoad>(
+        constraints,sparsity,interface_components,*runtime_expected);
+    }
   solution.reinit(dofs.n_dofs());
   old_solution.reinit(dofs.n_dofs());
   old_velocity.reinit(dofs.n_dofs());
@@ -337,6 +421,7 @@ double PdmsSolid::assemble_newton(const std::vector<Sample> &samples)
             }
         }
 
+      if (prm.get("interface transfer")=="legacyNearestNeighbour")
       for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
         if (cell->face(f)->at_boundary() &&
             cell->face(f)->boundary_id() == prm.get_integer("interface boundary"))
@@ -372,6 +457,12 @@ double PdmsSolid::assemble_newton(const std::vector<Sample> &samples)
           }
 
       constraints.distribute_local_to_global(cell_matrix, cell_rhs, local, matrix, rhs);
+    }
+  if (prm.get("interface transfer")=="dualConservative")
+    {
+      AssertThrow(generalized_load && generalized_load->is_received(),
+                  ExcMessage("dualConservative requires valid force and tangent before assemble_newton"));
+      generalized_load->add_to_newton(rhs,matrix);
     }
   return minimum_j;
 }
@@ -499,8 +590,8 @@ void PdmsSolid::run()
   read_mesh();
   setup();
   AssertThrow(prm.get("interface transfer")=="legacyNearestNeighbour",
-              ExcMessage("dualConservative production transport is not connected; "
-                         "G2-B.1 permits only the simulated generalized-load participant"));
+              ExcMessage("dualConservative runtime API is available, but the standalone "
+                         "executable has no live transport; inject data before assemble_newton"));
   const auto samples = read_samples(prm.get("input"));
   const auto queries = read_query_points(prm.get("query input"));
   solve_newton(samples);
@@ -514,6 +605,7 @@ void PdmsSolid::run()
             << std::endl;
 }
 
+#ifndef DEALII_PDMS_NO_MAIN
 int main(int argc, char **argv)
 {
   try
@@ -535,6 +627,12 @@ int main(int argc, char **argv)
                         Patterns::Selection("legacyNearestNeighbour|dualConservative"));
       prm.declare_entry("interface manifest", "", Patterns::Anything());
       prm.declare_entry("interface graph hash", "", Patterns::Anything());
+      prm.declare_entry("interface weights hash", "", Patterns::Anything());
+      prm.declare_entry("interface dof manifest hash", "", Patterns::Anything());
+      prm.declare_entry("interface time index", "0", Patterns::Integer(0));
+      prm.declare_entry("interface outer corrector", "0", Patterns::Integer(0));
+      prm.declare_entry("interface operator version", "0", Patterns::Integer(0));
+      prm.declare_entry("interface z version", "0", Patterns::Integer(0));
       prm.declare_entry("interface boundary", "4", Patterns::Integer(0));
       prm.declare_entry("clamped boundary 1", "1", Patterns::Integer(0));
       prm.declare_entry("clamped boundary 2", "2", Patterns::Integer(0));
@@ -561,3 +659,4 @@ int main(int argc, char **argv)
       return 1;
     }
 }
+#endif

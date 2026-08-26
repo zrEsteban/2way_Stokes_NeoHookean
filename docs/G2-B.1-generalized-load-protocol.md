@@ -4,7 +4,8 @@ Fecha: 2026-08-26
 
 Commit de entrada: `61cc77b4b7e02bfe5ab7aa7bf4c1a03bf37a995a`
 
-Estado: **PASS; producción fluido–sólido permanece legacy**
+Estado histórico del commit `f88684c`: **PASS sólo en arnés**. La integración
+productiva requerida se completó posteriormente en G2-B.1-RUNTIME.
 
 ## Convención residual y tangente
 
@@ -116,3 +117,10 @@ participante fluido usando la misma versión de H, aplicar el coeficiente
 temporal Robin derivado, y activar explícitamente el caso canónico. Debe
 mantener el guard de sellos/checksums y el monitor de trabajo. No requiere
 cambiar IQN-ILS, física, tolerancias ni integradores.
+
+## Corrección de alcance y cierre runtime
+
+La declaración PASS original era prematura: `GeneralizedLoad` aún no era
+invocado por `PdmsSolid::assemble_newton()`. G2-B.1-RUNTIME corrigió esa omisión
+y validó el residual/Jacobiano productivos. El PASS vigente de G2-B.1 depende de
+`docs/G2-B.1-runtime-newton-integration.md`, no sólo de este arnés.
