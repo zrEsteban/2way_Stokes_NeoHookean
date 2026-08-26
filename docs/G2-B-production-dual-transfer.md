@@ -153,3 +153,12 @@ estado anterior.
 Estado final: **G2-B FAIL por contrato estructural insuficiente**. La siguiente
 acción recomendada es **G2-B.1: ampliar y probar la API de cargas generalizadas
 y el manifiesto H**, no G3. No se inició G3.
+
+## Resultado de G2-B.1
+
+El preflight de G2-B.1 encontró un bloqueo previo adicional: el sparsity
+pattern generado sólo desde celdas FE no contiene 13 124 pares escalares
+requeridos por `H^T W_f Z_f H`. Conforme al criterio explícito, G2-B.1 se
+detuvo sin densificar ni implementar una API parcial. La ampliación dispersa
+mínima y el manifiesto se especifican en
+`docs/G2-B.1-generalized-structural-interface.md`.
