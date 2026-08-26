@@ -190,3 +190,12 @@ Estado final: **G2-B.1 FAIL** conforme a la rama obligatoria del prompt. El
 cambio mínimo siguiente es **G2-B.1a: ampliar de forma dispersa el patrón desde
 el manifiesto H y probar su hash/constraints**, antes de añadir las APIs de
 fuerza y triplets. No se inicia G2-B.2 ni G3.
+
+## Resultado de G2-B.1a
+
+El grafo y ensamblaje simulado pasan en serial/MPI: después de Dirichlet quedan
+3 168 pares escalares efectivos, el superset tensorial añade 28 512 entradas
+vectoriales (9,016 %) y faltan cero conexiones. G2-B.1a permanece FAIL parcial
+porque esa ampliación aún no se aplica al `DynamicSparsityPattern` C++ antes de
+crear la matriz productiva. Véase
+`docs/G2-B.1a-interface-sparsity-extension.md`.

@@ -162,3 +162,8 @@ requeridos por `H^T W_f Z_f H`. Conforme al criterio explícito, G2-B.1 se
 detuvo sin densificar ni implementar una API parcial. La ampliación dispersa
 mínima y el manifiesto se especifican en
 `docs/G2-B.1-generalized-structural-interface.md`.
+
+G2-B.1a construyó y validó el superset disperso en un participante simulado,
+pero no lo confundió con integración productiva: falta conectarlo al
+`DynamicSparsityPattern` C++ antes de inicializar la matriz. Producción sigue
+en modo legacy.
