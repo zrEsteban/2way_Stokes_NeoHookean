@@ -498,6 +498,9 @@ void PdmsSolid::run()
 {
   read_mesh();
   setup();
+  AssertThrow(prm.get("interface transfer")=="legacyNearestNeighbour",
+              ExcMessage("dualConservative production transport is not connected; "
+                         "G2-B.1 permits only the simulated generalized-load participant"));
   const auto samples = read_samples(prm.get("input"));
   const auto queries = read_query_points(prm.get("query input"));
   solve_newton(samples);

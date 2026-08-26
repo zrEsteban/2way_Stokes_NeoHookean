@@ -112,3 +112,10 @@ Boost deprecada transitiva de deal.II.
 se ensamblan fuerzas/tangentes duales dentro de Newton; las APIs, guard completo
 de ciclo de vida y diferencias finitas quedan para retomar G2-B.1. No se inició
 G2-B.2 ni G3.
+
+## Revalidación por G2-B.1-API
+
+El mismo patrón se usó para ensamblar la nueva tangente generalizada: todas las
+entradas pasan `exists(i,j)`, `Jx` coincide exactamente con la forma
+factorizada y las réplicas serial/MPI-2/MPI-4 coinciden. G2-B.1 implementó los
+sellos y la recepción atómica pendientes; no cambió los conteos 322.992/332.496.

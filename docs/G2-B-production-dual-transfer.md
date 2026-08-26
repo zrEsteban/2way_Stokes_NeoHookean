@@ -167,3 +167,12 @@ G2-B.1a construyó y validó el superset disperso en un participante simulado,
 pero no lo confundió con integración productiva: falta conectarlo al
 `DynamicSparsityPattern` C++ antes de inicializar la matriz. Producción sigue
 en modo legacy.
+
+## Estado posterior a G2-B.1-API
+
+El bloqueo estructural queda resuelto: el patrón C++ se amplía antes de
+`reinit()` y `GeneralizedInterfaceLoad.H` acepta fuerza N y la contribución de
+Jacobiano `J_Gamma=-df_Gamma/dd` en N/m, con constraints, sellos y checksums.
+Las pruebas end-to-end deal.II pasan en serial/MPI-2/MPI-4. Aún no existe
+transporte desde el fluido real ni se activa dual en casos productivos; esas son
+las tareas acotadas de G2-B.2. Producción continúa legacy sin regresiones.

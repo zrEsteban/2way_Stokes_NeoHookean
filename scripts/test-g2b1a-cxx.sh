@@ -58,6 +58,11 @@ for value in values:
     assert value['effective_hash_fnv64']==reference['effective_hash_fnv64']
     limit=1e-12 if value['ranks']==1 else 1e-10
     assert value['action_error']<=limit and value['symmetry_error']<=limit
+    assert value['force_error']<=limit and value['protocol_kx_error']<=limit
+    assert value['work_error']<=limit
+    assert value['best_fd_error'] <= (1e-8 if value['ranks']==1 else 1e-7)
+    assert value['full_fd_best'] <= (1e-8 if value['ranks']==1 else 1e-7)
+    assert value['inverted_sign_fd_error'] > 1.9
 print('G2-B.1a-CXX real DynamicSparsityPattern/SparseMatrix PASS')
 for value in values: print(json.dumps(value,sort_keys=True))
 PY

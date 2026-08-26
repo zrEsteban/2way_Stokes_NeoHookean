@@ -200,3 +200,19 @@ matriz real reproduce `H^T W_f Z_f Hx` con error `4,561e-16` en serial, MPI-2
 y MPI-4. Producción permanece legacy. G2-B.1 sigue incompleto hasta implementar
 y validar las APIs de fuerza/tangente; véase
 `docs/G2-B.1a-interface-sparsity-extension.md`.
+
+## Cierre G2-B.1-API
+
+La sección de bloqueo anterior queda superada por la implementación
+`GeneralizedInterfaceLoad.H`. Se adoptó `J_Gamma=-df_Gamma/dd`, por lo que
+`R=R_s-f_Gamma`, `J=J_s+J_Gamma`. Fuerza N y triplets N/m se transforman con
+`C^T`/`C^T(.)C` y se ensamblan directamente sin cuadratura ni área. Sellos,
+hashes, unidades, componentes, duplicados, checksums y validez explícita se
+verifican antes del ensamblaje.
+
+El participante simulado real pasa fuerza, tangente, trabajo y diferencias
+finitas en serial/MPI-2/MPI-4; mejor error del residual completo `2,685e-9` y
+error de trabajo `2,333e-15`. Legacy conserva 322.992 nonzeros y sus SHA-256.
+Estado final actualizado: **G2-B.1 PASS**. Detalles en
+`docs/G2-B.1-generalized-load-protocol.md`. Producción sigue legacy; G2-B.2 y
+G3 no se iniciaron.
