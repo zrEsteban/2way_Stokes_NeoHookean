@@ -102,3 +102,59 @@ G2-B.1-RUNTIME conectó `GeneralizedLoad` a `PdmsSolid::assemble_newton()` y
 validó el camino real en serial/MPI. Por tanto, el bloqueo descrito aquí ya no
 impide reabrir G2-B.2 en un gate posterior. Este trabajo no reintentó handshake
 ni modificó el acoplador fluido.
+
+## G2-B.2-RETRY — preflight del ejecutable
+
+Fecha: 2026-08-26
+
+Commit de entrada: `1ff38d6c78a3e24326a4af63fbebfaee5ccdab63`
+
+Estado: **FAIL en preflight; acoplador fluido no modificado**
+
+La regresión versionada de G2-B.1-RUNTIME volvió a pasar en serial, MPI-2 y
+MPI-4. En los tres casos produjo `rhs=1`, error de repetición cero, error de
+diferencia finita `1,02721e-11` y error 2 al invertir deliberadamente el signo.
+Esto confirma la integración de `GeneralizedLoad` en el método real
+`PdmsSolid::assemble_newton()`.
+
+Sin embargo, el criterio adicional de este retry exige que **el ejecutable**
+estructural acepte dual con datos válidos. Esa condición no se cumple. El
+único consumidor de los setters runtime es todavía
+`tests/test_runtime_newton.cc`, que incluye la clase en el mismo proceso. El
+método productivo `PdmsSolid::run()` ejecuta `setup()` y a continuación exige
+incondicionalmente `interface transfer == legacyNearestNeighbour`.
+
+El binario no declara parámetros para mensajes de fuerza y tangente, no
+deserializa `ForceMessage` ni `TangentMessage`, y no puede invocar
+`set_generalized_interface_data()` desde su interfaz de línea de comandos. No
+existe, por tanto, una entrada que permita presentar al ejecutable un par
+válido `(f_Gamma,J_Gamma)`; cualquier configuración dual aborta antes de
+`solve_newton()`.
+
+La separación de procesos es obligatoria porque OpenFOAM y deal.II cargan
+versiones distintas de PETSc. No sería correcto enlazar la clase deal.II en el
+plugin OpenFOAM. Tampoco son utilizables los CSV legacy: contienen tracción en
+Pa y cinemática por coordenada, carecen de esquema, IDs globales, hashes,
+unidades, triplets y sellos de corrector, y reintroducirían
+nearest-neighbour/JxW.
+
+Conforme a la instrucción “si falla, detenerse sin modificar el acoplador”, no
+se ejecutaron las etapas A--K, no se creó un caso dual, no se ejecutó el
+baseline fuerte y no se modificó `src/robinRobinCoupling`.
+
+### Cambio mínimo previo requerido
+
+Reabrir primero **G2-B.1-EXEC-PROTOCOL** para:
+
+1. añadir serialización canónica y versionada de `Expected`, `ForceMessage` y
+   `TangentMessage`, con checksums y unidades;
+2. permitir al ejecutable recibir el manifiesto antes de
+   `SparseMatrix::reinit()` y la fuerza/tangente después de inicializarlo;
+3. retirar el aborto dual sólo tras validar y activar ambos mensajes;
+4. probar el binario real con datos válidos, cero válido, mensajes incompletos,
+   hashes incorrectos y restart sin estado provisional;
+5. conservar un transporte neutral entre procesos, sin compartir objetos
+   PETSc ni reinterpretar fuerzas N como tracciones Pa.
+
+Después de aprobarlo, G2-B.2 podrá implementar el handshake live en el
+acoplador. G2-B.2 permanece **FAIL/BLOCKED** y G3 no se inició.

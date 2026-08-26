@@ -185,3 +185,15 @@ que `GeneralizedLoad` sólo se invoca desde el arnés y aún no desde
 dual. Conforme al criterio obligatorio no se simuló una conexión viva ni se
 usaron archivos temporales como atajo. Se requiere primero G2-B.1-RUNTIME;
 véase `docs/G2-B.2-live-dual-transfer.md`.
+
+## Resultado de G2-B.2-RETRY
+
+G2-B.1-RUNTIME corrigió la integración dentro de
+`PdmsSolid::assemble_newton()`, pero no expuso esa API a través del ejecutable
+que invoca el acoplador como proceso separado. El retry confirmó que el arnés
+runtime sigue pasando y que `PdmsSolid::run()` aún rechaza incondicionalmente
+dual, sin deserializador de fuerza/tangente generalizadas. El preflight del
+binario es por ello **FAIL**. En cumplimiento del orden obligatorio no se tocó
+el acoplador, no se activó dual y no se reintentaron casos FSI. El cambio
+mínimo pendiente es G2-B.1-EXEC-PROTOCOL; la evidencia está en
+`docs/G2-B.2-live-dual-transfer.md`.
