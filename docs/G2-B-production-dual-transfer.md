@@ -176,3 +176,12 @@ Jacobiano `J_Gamma=-df_Gamma/dd` en N/m, con constraints, sellos y checksums.
 Las pruebas end-to-end deal.II pasan en serial/MPI-2/MPI-4. Aún no existe
 transporte desde el fluido real ni se activa dual en casos productivos; esas son
 las tareas acotadas de G2-B.2. Producción continúa legacy sin regresiones.
+
+## Preflight G2-B.2
+
+G2-B.2 quedó **BLOCKED antes de modificar el acoplador**: la auditoría mostró
+que `GeneralizedLoad` sólo se invoca desde el arnés y aún no desde
+`PdmsSolid::assemble_newton()`. El ejecutable aborta deliberadamente el modo
+dual. Conforme al criterio obligatorio no se simuló una conexión viva ni se
+usaron archivos temporales como atajo. Se requiere primero G2-B.1-RUNTIME;
+véase `docs/G2-B.2-live-dual-transfer.md`.
