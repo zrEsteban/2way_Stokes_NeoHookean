@@ -130,7 +130,9 @@ momento a precisión de máquina.
 ## Clasificación y diseño G2-B
 
 Clasificación: **A** — H conserva partición de unidad, trabajo, fuerza, momento
-y campos lineales; puede integrarse directamente en G2-B.
+y campos lineales. G2-B confirmó posteriormente que su integración requiere
+primero ampliar la API estructural: la API actual sólo acepta tracciones y las
+integra de nuevo con `JxW`; no acepta fuerzas nodales generalizadas.
 
 Diseño concreto propuesto, no implementado aquí:
 
@@ -167,6 +169,8 @@ G2A_WORK=/tmp/g2a-dual-transfer-20260825-3 \
 Riesgos abiertos para G2-B:
 
 - la producción sigue usando nearest-neighbour independiente para cargas;
+- `assemble_newton()` no dispone de entrada directa para fuerzas nodales N ni
+  para la tangente Robin dual;
 - el runtime todavía no exporta un manifiesto DoF-ID/owner;
 - debe verificarse que el orden global del `standAlonePatch` sea idéntico tras
   descomposiciones OpenFOAM reales, además de la partición adversarial probada;

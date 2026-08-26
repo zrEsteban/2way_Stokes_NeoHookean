@@ -1,0 +1,155 @@
+# G2-B — integración productiva del operador dual
+
+Fecha: 2026-08-25  
+Commit de entrada: `9130bd35d24dd577ff4ba6d88d504f968dac95c0`  
+Estado: **FAIL — contrato estructural bloqueante; producción no modificada**
+
+## Decisión temprana obligatoria
+
+G2-B exige detenerse si el contrato deal.II no permite aplicar fuerzas nodales
+generalizadas sin reinterpretarlas como tracción. Ése es exactamente el estado
+actual.
+
+OpenFOAM escribe `dealiiSolid/robin-in.csv` con columnas
+
+```text
+x,y,z,tx,ty,tz,vx,vy,vz
+```
+
+Los valores `t` son tracciones en `N/m2`. `read_samples()` los almacena en
+`Sample::traction`. Durante cada Newton,
+`PdmsSolid::assemble_newton()` ejecuta, para cada punto de cuadratura de la
+superficie estructural:
+
+```cpp
+const Sample &s = nearest(samples, face_values.quadrature_point(q));
+cell_rhs(i) += (phi_i*(s.traction + Z*s.velocity - Z*solid_velocity))
+               *face_values.JxW(q);
+```
+
+Por tanto la única API disponible:
+
+1. interpreta la entrada como Pa;
+2. hace una búsqueda nearest-neighbour independiente de H;
+3. multiplica por la función de forma y por `JxW` en m²;
+4. genera recién entonces una fuerza nodal en N.
+
+El vector dual solicitado
+
+```text
+f_s = -H^T W_f t_f
+```
+
+ya está integrado y tiene unidades N. No existe parámetro, fichero ni overload
+de `assemble_newton()` que acepte ese vector. Pasarlo por `Sample::traction`
+haría que deal.II lo tratara como N/m² y lo multiplicara otra vez por área:
+sería doble integración y dimensionalmente produciría N·m². Esto activa el
+criterio de **FAIL inmediato** del gate.
+
+## Infraestructura que también falta
+
+El protocolo actual tampoco contiene los datos necesarios para que OpenFOAM
+aplique el operador C++ productivo verificado en G2-A:
+
+- no exporta IDs globales reales de los 12 948 DoFs deal.II;
+- no exporta las filas Q1 de `H_ps` ni su ownership;
+- `robin-query.csv` sólo contiene coordenadas, sin IDs ni pesos;
+- `robin-in.csv` sólo contiene centros de cara, tracción y velocidad, sin
+  conectividad punto-cara, áreas o versión/hash de H;
+- la cinemática se evalúa dentro del proceso deal.II, mientras la media
+  `P_fp` se ejecuta después en OpenFOAM;
+- la fuerza actual vuelve a hacer nearest-neighbour en cuadratura y no puede
+  derivarse del almacenamiento cinemático.
+
+Aunque el `standAlonePatch` global está replicado en los ranks OpenFOAM y el
+proceso deal.II actual es serial, reunir únicamente tracciones en master no
+resuelve el problema: falta un contrato de IDs/filas que haga posible acumular
+Hᵀ sin doble conteo y aplicar el resultado al vector estructural correcto.
+
+## Cambio mínimo de API requerido
+
+Antes de reanudar G2-B se necesita un commit estructural explícito con este
+contrato mínimo:
+
+1. **Manifiesto cinemático deal.II**
+
+   - Para cada punto FVM consultado: ID global estable, lista de
+     `(global_dof_id, component, Q1_weight)` y owner.
+   - Dimensiones, nonzeros, versión y hash reproducible.
+   - La misma instancia/versión debe producir los valores cinemáticos y recibir
+     la aplicación transpuesta.
+
+2. **Topología FVM del operador compuesto**
+
+   - IDs globales de cara y punto, conectividad ordenada, `|S_f|`, owner y
+     hash.
+   - Con ello se compone `H=P_fp H_ps` una vez; H y Hᵀ recorren el mismo
+     almacenamiento.
+
+3. **Entrada de fuerza generalizada**
+
+   - Un modo inequívoco, por ejemplo
+     `interface load representation = generalized_dof_force`.
+   - Fichero/vector con `(global_dof_id, component, force_N)`.
+   - `assemble_newton()` debe sumar este vector directamente al residual
+     global después del ensamblaje interno, aplicando las restricciones
+     homogéneas de `AffineConstraints`, **sin** `FEFaceValues`, `phi_i`,
+     nearest-neighbour ni `JxW`.
+   - Validar tamaño, IDs únicos/owners, unidades N, versión/hash y componentes.
+
+4. **Término Robin consistente**
+
+   La ruta actual no sólo aplica tracción física: integra
+
+   ```text
+   H^T W_f [ -t_f + Z(v_f-H v_s) ]
+   ```
+
+   y su tangente estructural contiene el término coherente
+   `Z H^T W_f H * dv_s/dd_s`. El nuevo contrato debe aceptar tanto la fuerza
+   generalizada como la contribución matricial derivada del mismo H. Convertir
+   únicamente la tracción y dejar el término de impedancia en una cuadratura
+   nearest-neighbour mantendría dos operadores y violaría el requisito de
+   operador productivo único.
+
+5. **Selección runtime coordinada**
+
+   - `legacyNearestNeighbour`: protocolo actual, default para casos antiguos.
+   - `dualConservative`: requiere manifiesto y fuerza/tangente generalizadas;
+     debe fallar si faltan o si los hashes/versiones no coinciden.
+   - El caso canónico sólo podrá seleccionar `dualConservative` después de que
+     ambos participantes implementen el contrato.
+
+Este cambio mínimo es una ampliación de API, no un ajuste de tolerancia ni una
+modificación de la formulación física.
+
+## Pruebas que no se ejecutaron
+
+No se activó un modo dual falso y, por tanto, no se ejecutaron como evidencia
+dual:
+
+- mínimos serial/MPI;
+- restart serial/MPI;
+- monitor productivo de trabajo;
+- baseline fuerte.
+
+Tampoco fue necesario repetir legacy: ningún archivo productivo, caso,
+tolerancia, parámetro o binario fue modificado. G0, G1 y G2-A conservan su
+estado anterior.
+
+## Criterios
+
+| criterio G2-B | estado | evidencia |
+|---|---|---|
+| mismo H para cinemática y dinámica | FAIL | dinámica usa nearest en cuadratura |
+| fuerza exacta `-H^T W_f t_f` | FAIL | API sólo acepta tracción |
+| ausencia de doble integración | BLOCKED | enviar N por API actual multiplicaría por `JxW` |
+| signo y unidades | PASS en especificación | no se activó una ruta incorrecta |
+| tests C++ productivos | NOT RUN | operador productivo no puede conectarse todavía |
+| serial/MPI y restart dual | NOT RUN | bloqueados por contrato |
+| legacy sin regresión | PRESERVED | producción sin cambios |
+| árbol limpio/publicado | PASS al cierre documental | sólo documentación |
+
+Estado final: **G2-B FAIL por contrato estructural insuficiente**. La siguiente
+acción recomendada es **G2-B.1: ampliar y probar la API de cargas generalizadas
+y el manifiesto H**, no G3. No se inició G3.
