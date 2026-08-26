@@ -69,10 +69,24 @@ def factored_apply(rows,areas,z,x,owned,constrained):
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument("case",type=Path)
     parser.add_argument("--expect-legacy-missing",action="store_true")
+    parser.add_argument("--export-manifest",type=Path)
     parser.add_argument("--seed",type=int,default=20260825); args=parser.parse_args()
     comm=MPI.COMM_WORLD; rank,ranks=comm.rank,comm.size
     rows,_,areas,_,_,_=dual.build_operator(args.case)
     stable,constrained,legacy,required,raw_missing,missing,extended=build_graphs(args.case,rows)
+    if args.export_manifest and rank == 0:
+        _,_,_,points,_,_=dual.build_operator(args.case)
+        with args.export_manifest.open("w") as output:
+            output.write("G2B1A_INTERFACE_GRAPH 1\n")
+            output.write(f"hashGraph {graph_hash(required)}\n")
+            output.write(f"nodes {len(points)}\n")
+            for node,point in enumerate(points):
+                output.write(f"node {node} {point[0]:.17g} {point[1]:.17g} {point[2]:.17g}\n")
+            output.write(f"rows {len(rows)}\n")
+            for face,row in enumerate(rows):
+                entries=" ".join(f"{node} {weight:.17g}" for node,weight in sorted(row.items()))
+                output.write(f"row {face} {areas[face]:.17g} {len(row)} {entries}\n")
+            output.write("end\n")
     if args.expect_legacy_missing and not raw_missing: raise RuntimeError("legacy unexpectedly sufficient")
     if required-extended: raise RuntimeError("extended pattern has missing connections")
     if extended != extended|{(j,i) for i,j in extended}: raise RuntimeError("graph not symmetric")

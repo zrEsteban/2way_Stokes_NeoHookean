@@ -17,6 +17,10 @@ target_include_directories(testTimeIntegration PRIVATE ${CMAKE_CURRENT_SOURCE_DI
 
 add_executable(testSignConvention tests/test_sign_convention.cc)
 
+add_executable(testInterfaceSparsity tests/test_interface_sparsity.cc)
+target_include_directories(testInterfaceSparsity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+deal_ii_setup_target(testInterfaceSparsity)
+
 enable_testing()
 add_test(NAME neo_hookean_material COMMAND testNeoHookean)
 add_test(NAME time_integration COMMAND testTimeIntegration)

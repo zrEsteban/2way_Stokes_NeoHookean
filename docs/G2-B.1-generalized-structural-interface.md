@@ -191,11 +191,12 @@ cambio mínimo siguiente es **G2-B.1a: ampliar de forma dispersa el patrón desd
 el manifiesto H y probar su hash/constraints**, antes de añadir las APIs de
 fuerza y triplets. No se inicia G2-B.2 ni G3.
 
-## Resultado de G2-B.1a
+## Resultado de G2-B.1a-CXX
 
-El grafo y ensamblaje simulado pasan en serial/MPI: después de Dirichlet quedan
-3 168 pares escalares efectivos, el superset tensorial añade 28 512 entradas
-vectoriales (9,016 %) y faltan cero conexiones. G2-B.1a permanece FAIL parcial
-porque esa ampliación aún no se aplica al `DynamicSparsityPattern` C++ antes de
-crear la matriz productiva. Véase
+G2-B.1a queda **PASS**. La ampliación vive en el
+`DynamicSparsityPattern` productivo antes de `SparseMatrix::reinit()`: la Robin
+escalar `Z_f=z_f I` requiere 9.504 entradas adicionales, faltan cero y la
+matriz real reproduce `H^T W_f Z_f Hx` con error `4,561e-16` en serial, MPI-2
+y MPI-4. Producción permanece legacy. G2-B.1 sigue incompleto hasta implementar
+y validar las APIs de fuerza/tangente; véase
 `docs/G2-B.1a-interface-sparsity-extension.md`.

@@ -30,6 +30,7 @@
 
 #include "NeoHookeanMaterial.H"
 #include "TimeIntegration.H"
+#include "InterfaceSparsityExtension.H"
 
 using namespace dealii;
 
@@ -161,6 +162,24 @@ void PdmsSolid::setup()
   constraints.close();
   DynamicSparsityPattern dsp(dofs.n_dofs());
   DoFTools::make_sparsity_pattern(dofs, dsp, constraints, false);
+  const std::string transfer=prm.get("interface transfer");
+  if (transfer=="dualConservative")
+    {
+      const std::string manifest_path=prm.get("interface manifest");
+      AssertThrow(!manifest_path.empty(),ExcMessage(
+        "dualConservative requires interface manifest before matrix reinit"));
+      const auto manifest=interface_sparsity::read_manifest(manifest_path);
+      const std::string expected_hash=prm.get("interface graph hash");
+      AssertThrow(!expected_hash.empty() && manifest.hash_graph==expected_hash,
+                  ExcMessage("interface manifest hashGraph mismatch"));
+      const auto node_dofs=interface_sparsity::map_nodes_to_dofs<dim>(manifest,dofs);
+      const auto stats=interface_sparsity::augment_interface_sparsity<dim>(
+        dsp,manifest,node_dofs,constraints);
+      AssertThrow(stats.final_missing==0,ExcMessage("Incomplete dual interface sparsity"));
+      std::cout << "Dual interface graph prepared before SparseMatrix::reinit: hashGraph="
+                << manifest.hash_graph << ", required=" << stats.required
+                << ", added=" << stats.added << std::endl;
+    }
   sparsity.copy_from(dsp);
   matrix.reinit(sparsity);
   solution.reinit(dofs.n_dofs());
@@ -509,6 +528,10 @@ int main(int argc, char **argv)
       prm.declare_entry("time integration", "backwardEuler",
                         Patterns::Selection("backwardEuler|bdf2"));
       prm.declare_entry("solid impedance", "67350", Patterns::Double(0));
+      prm.declare_entry("interface transfer", "legacyNearestNeighbour",
+                        Patterns::Selection("legacyNearestNeighbour|dualConservative"));
+      prm.declare_entry("interface manifest", "", Patterns::Anything());
+      prm.declare_entry("interface graph hash", "", Patterns::Anything());
       prm.declare_entry("interface boundary", "4", Patterns::Integer(0));
       prm.declare_entry("clamped boundary 1", "1", Patterns::Integer(0));
       prm.declare_entry("clamped boundary 2", "2", Patterns::Integer(0));
