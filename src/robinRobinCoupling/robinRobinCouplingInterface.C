@@ -676,9 +676,11 @@ void robinRobinCouplingInterface::updatePdmsElasticWallPressure()
         const standAlonePatch& fluidZone =
             fluid().globalPatches()[interfaceI].globalPatch();
         vectorField fluidAcceleration(fluidZone.size(), vector::zero);
+        bool accelerationAvailable = false;
         if (useDealII_ && dealIIFaceAcceleration_[interfaceI].size())
         {
             fluidAcceleration=dealIIFaceAcceleration_[interfaceI];
+            accelerationAvailable = true;
         }
         else if (!useDealII_)
         {
@@ -692,15 +694,23 @@ void robinRobinCouplingInterface::updatePdmsElasticWallPressure()
             (
                 solidZone, fluidZone, solidAcceleration, fluidAcceleration
             );
+            accelerationAvailable = true;
         }
 
         pdmsElasticWallPressureFvPatchScalarField& robinP =
             refCast<pdmsElasticWallPressureFvPatchScalarField>(patchP);
-        robinP.prevAcceleration() =
-            fluid().globalPatches()[interfaceI].globalFaceToPatch
-            (
-                fluidAcceleration
-            );
+        // On a deal.II restart the accepted acceleration is read from the
+        // pressure patch dictionary before the external participant has sent
+        // its first face field.  Preserve that accepted value instead of
+        // replacing it with a synthetic zero field during start-up.
+        if (accelerationAvailable)
+        {
+            robinP.prevAcceleration() =
+                fluid().globalPatches()[interfaceI].globalFaceToPatch
+                (
+                    fluidAcceleration
+                );
+        }
         robinP.prevPressure() =
             fluid().patchSolutionPressureForce(fluidPatchID);
     }

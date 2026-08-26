@@ -1,6 +1,6 @@
 # G1 — signos, integración temporal, estados y persistencia Robin
 
-Estado: **FAIL**. Commit de entrada: `9897ceba2de926397c261f1f8c9a7d22a5b739e8`.
+Estado: **PASS tras G1-RF**. Commit de entrada: `9897ceba2de926397c261f1f8c9a7d22a5b739e8`.
 G0 permanece aprobado; no se inició G2 ni se modificaron tolerancias, datos
 físicos, transferencia, IQN-ILS o formulación FSI.
 
@@ -79,8 +79,9 @@ restauran. `decomposePar -no-libs` permanece obligatorio como defensa.
 | validador negativo G0 | PASS |
 | mínimo serial continuo, 10 pasos, `End`, sin NaN/Inf | PASS |
 | aceptación exactamente una vez | PASS (10; partido 5+5) |
-| restart serial continuo/partido, `rtol=5e-5` | **FAIL** |
-| mínimo/restart MPI de G1 | NOT RUN: bloqueado por el fallo serial previo |
+| restart serial continuo/partido, `rtol=5e-5` | PASS; salidas comparadas bit a bit |
+| mínimo/restart MPI de G1 | PASS; salidas comparadas bit a bit |
+| equivalencia serial/MPI, `rtol=5e-5` | PASS |
 
 Comandos principales:
 
@@ -101,22 +102,22 @@ SHA-256: `fsiResiduals.dat`
 `robin-out.csv`
 `cceaabe1995fc8bf45b148a7375f0b632e5afb2c4baf6312c3ad1243c0a14cc1`.
 
-El partido también alcanzó `End` y usó BDF2, pero su `robin-out.csv` fue
-`cfd677ac4f397391696e22b0492c1f2cc5a2ce6d77241e41d29ece8980b240dd`.
-Los máximos relativos continuo/partido fueron aproximadamente 4.0–6.3 % en
-desplazamiento, 0.8–7.9 % en velocidad, 1.4–4.8 % en tracción y 11.9–42.3 %
-en aceleración: exceden `5e-5`. La primera divergencia significativa aparece
-en el primer solve de presión a `t=6e-7`: residual inicial
-`0.059691256396702426` continuo frente a `0.059624512273709143` restart,
-aunque el solve de velocidad anterior coincide a los dígitos impresos.
+G1-RF demostró que el participante deal.II todavía no había enviado su campo
+de aceleración al arrancar. `updatePdmsElasticWallPressure()` sustituía entonces
+la aceleración aceptada y correctamente leída por un campo cero. La corrección
+conserva el estado aceptado hasta disponer de un campo externo válido.
+
+La regresión nueva `/tmp/g1rf-restart-regression-20260825-1` alcanzó `End` en
+continuo y partido, serial y MPI. Los `robin-out.csv` continuo/partido son
+idénticos: serial
+`cceaabe1995fc8bf45b148a7375f0b632e5afb2c4baf6312c3ad1243c0a14cc1`,
+MPI `b6e5fa5648291d58911bca8b6fa0eef08794758f0f486f8b8676f45d03d42f4a`.
+La concatenación de `fsiResiduals.dat` de 5+5 también es idéntica al continuo.
+No aparecieron NaN/Inf y la comparación serial/MPI pasó con `rtol=5e-5`.
 
 ## Decisión y riesgos
 
-G1 no puede aprobarse: falta identificar y persistir el estado del participante
-fluido que causa la divergencia de presión posterior al restart. No se ajustó
-ninguna tolerancia para ocultarlo. MPI restart no debe considerarse validado.
-
-El siguiente trabajo recomendado sigue siendo **G1**, no G2: instrumentar de
-forma opt-in los términos de la ecuación de presión y sus campos `oldTime`,
-localizar el primer operando distinto en `t=6e-7`, persistirlo y repetir la
-matriz serial/MPI. No iniciar G2 hasta cerrar esta deuda.
+G1 queda aprobado. La causa, descomposición bit a bit y experimentos causales
+se registran en `G1-robin-boundary-coefficient-causality.md`. No se ajustaron
+tolerancias ni parámetros físicos. El siguiente gate recomendado es G2, pero
+no se inicia como parte de este trabajo.

@@ -3,7 +3,7 @@
 Fecha: 2026-08-25  
 Commit de partida: `2a736a1341d7e23e4e28e6b3e348f4fbeb176542`  
 Estado del diagnóstico: **PASS (divergencia localizada)**  
-Estado de G1: **no se cierra en este gate**
+Estado de G1: **PASS tras la corrección causal G1-RF**
 
 Este documento registra trabajo nuevo de G1-R. No reevalúa ni resume el informe
 general de G1.
@@ -121,16 +121,15 @@ Para hacer inequívoca la clasificación usada por G1-R:
 | A | campo físico no escrito o valor textual alterado | descartada |
 | B | historia `oldTime` incompleta o desplazada | descartada |
 | C | parámetro/estado persistente Robin perdido | descartada en los diccionarios escritos |
-| D | estado geométrico o coeficiente de borde derivado reconstruido de forma no idempotente | **principal** |
+| D | estado geométrico o coeficiente de borde derivado reconstruido de forma no idempotente | hipótesis provisional, refutada por G1-RF |
 | E | matriz interna o RHS de presión diferente | descartada antes de incorporar el borde |
 | F | estado/caché interno del solver lineal | no es la primera divergencia |
 | G | indeterminismo o procedencia distinta | descartada |
 
-Clasificación obligatoria: **D**. La hipótesis queda delimitada a la
-reconstrucción del coeficiente Robin del patch `interface` (normales,
-`deltaCoeffs` y los operandos derivados usados por `updateCoeffs`). Los puntos y
-los miembros persistidos son idénticos, pero el coeficiente ensamblado no lo
-es. No se modificó la fórmula ni se intentó corregirla en G1-R.
+La descomposición posterior G1-RF corrigió esta clasificación provisional: la
+geometría era idéntica. El primer suboperando distinto era
+`prevAcceleration`, correctamente leído y después sobrescrito por cero durante
+el arranque deal.II. Véase `G1-robin-boundary-coefficient-causality.md`.
 
 ## Archivos y comandos
 
@@ -156,9 +155,6 @@ instrumentación; no recompiló otros objetivos ni alteró el algoritmo.
 
 ## Riesgo y siguiente acción
 
-La perturbación absoluta es pequeña, pero el acoplamiento la amplifica después
-del primer solve. Falta instrumentar directamente los operandos por cara dentro
-de `pdmsElasticWallPressureFvPatchScalarField::updateCoeffs()` para separar
-`nf`, `deltaCoeffs`, `prevAcceleration` y el término Robin. Esa corrección o
-decisión de persistencia pertenece a una remediación posterior de G1. **No se
-inicia G2.**
+La perturbación no era un ULP geométrico: ocultaba la pérdida completa de la
+aceleración previa en el término Robin. G1-RF implementó y validó la corrección
+mínima. **No se inicia G2.**
