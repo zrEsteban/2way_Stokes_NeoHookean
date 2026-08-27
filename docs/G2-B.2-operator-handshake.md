@@ -1,5 +1,13 @@
 # G2-B.2-OPERATOR-HANDSHAKE — evaluación Q1 de H_ps
 
+## Resultado del prerrequisito G2-A-RUNTIME-Q1
+
+El constructor deal.II productivo ya existe, pero quedó `BLOCKED_GEOMETRY`: el
+query 20 está separado del boundary 4 por `5.709e-8 m`, equivalente a
+`3.481e-5 h_face`. Esto supera el límite `1e-8` y confirma que la extrapolación
+del oracle Python era material. El handshake sigue pendiente; no deben añadirse
+sus mensajes hasta resolver explícitamente marco o proyección superficial.
+
 Fecha: 2026-08-26
 
 Commit de entrada: `a33dbc305891ab4fd4744be1005532453f730dc2`

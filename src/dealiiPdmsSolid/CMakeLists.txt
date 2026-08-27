@@ -29,6 +29,10 @@ add_executable(testExecutableProtocol tests/test_executable_protocol.cc)
 target_include_directories(testExecutableProtocol PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 deal_ii_setup_target(testExecutableProtocol)
 
+add_executable(testRuntimeQ1 tests/test_runtime_q1.cc)
+target_include_directories(testRuntimeQ1 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+deal_ii_setup_target(testRuntimeQ1)
+
 enable_testing()
 add_test(NAME neo_hookean_material COMMAND testNeoHookean)
 add_test(NAME time_integration COMMAND testTimeIntegration)

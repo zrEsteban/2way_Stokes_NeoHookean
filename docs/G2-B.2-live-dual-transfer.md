@@ -1,5 +1,11 @@
 # G2-B.2 — conexión dual viva FVM–FEM
 
+## Dependencia RuntimeQ1
+
+G2-A-RUNTIME-Q1 creó el constructor productivo, pero detectó una discrepancia
+geométrica relativa `3.481e-5 h_face` con `projectionMode=none`. Por ello el
+handshake del operador y G2-B.2 continúan pendientes desde la etapa B.
+
 ## Resultado de G2-B.2-OPERATOR-HANDSHAKE
 
 El retry dirigido quedó **BLOCKED en preflight**. La referencia G2-A construye

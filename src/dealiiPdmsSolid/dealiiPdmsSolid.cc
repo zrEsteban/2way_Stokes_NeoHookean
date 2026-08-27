@@ -32,6 +32,7 @@
 #include "NeoHookeanMaterial.H"
 #include "TimeIntegration.H"
 #include "InterfaceSparsityExtension.H"
+#include "RuntimeQ1InterfaceOperator.H"
 #include "GeneralizedInterfaceLoad.H"
 #include "ExecutableProtocol.H"
 
@@ -180,6 +181,16 @@ public:
   { return interface_node_dofs; }
   const AffineConstraints<double> &runtime_constraints() const { return constraints; }
   const SparsityPattern &runtime_sparsity() const { return sparsity; }
+  const DoFHandler<dim> &runtime_dofs() const { return dofs; }
+  types::global_dof_index runtime_dof_count() const { return dofs.n_dofs(); }
+  runtime_q1::Operator<dim> build_canonical_interface_q1_operator(
+    const std::vector<runtime_q1::Query<dim>> &queries,
+    const double relative_tolerance=1e-10) const
+  {
+    runtime_q1::Builder<dim> builder(mapping,dofs,constraints,
+      prm.get_integer("interface boundary"),"reference",1,relative_tolerance);
+    return builder.build(queries);
+  }
   std::string runtime_assembly_diagnostic();
   std::string structural_state_payload(const std::string &kind) const;
   void accept_protocol_time_step();
@@ -205,6 +216,7 @@ private:
 
   ParameterHandler &prm;
   Triangulation<dim> mesh;
+  MappingQ1<dim> mapping;
   FESystem<dim> fe;
   DoFHandler<dim> dofs;
   AffineConstraints<double> constraints;

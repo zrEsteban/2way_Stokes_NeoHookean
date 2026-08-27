@@ -1,5 +1,14 @@
 # G2-A — operador dual FVM–FEM
 
+## Corrección de alcance tras G2-A-RUNTIME-Q1
+
+`G2-A-OFFLINE=PASS`, `G2-A-RUNTIME-Q1=BLOCKED_GEOMETRY` y
+`G2-A-PRODUCTION=INCOMPLETE`. Los resultados Python conservativos permanecen
+aprobados como oracle algebraico, pero su búsqueda volumétrica con extrapolación
+no representa una evaluación sobre el boundary deal.II real. El constructor C++
+productivo detectó la primera separación relativa `3.481e-5 h_face`, superior al
+límite `1e-8`; no se añadió proyección ni nearest-neighbour.
+
 Fecha: 2026-08-25  
 Commit de entrada: `4bcef5aca7988ea4aa7380a6a9072500476ddb95`  
 Estado: **PASS (especificación y arnés; transferencia productiva intacta)**

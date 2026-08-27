@@ -52,6 +52,7 @@ cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/*/
 cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/constant/*/polyMesh/
 cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/*.msh
 cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/*.csv
+!cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/robin-query.csv
 cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/dealiiSolid/*state.bin
 cases/pdmsMicrochannelFSI/stabilityStudy/semiImplicitBetaIQNILS/run.pid
 validation/

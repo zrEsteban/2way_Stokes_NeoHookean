@@ -1,5 +1,12 @@
 # G2-B — integración productiva del operador dual
 
+## Estado del constructor RuntimeQ1
+
+El constructor C++ canónico está integrado en PdmsSolid, pero el caso canónico
+es `BLOCKED_GEOMETRY`: al menos un punto FVM no pertenece al boundary deal.II
+dentro de `1e-8 h_face`. G2-B no puede consumir H_ps hasta resolver esta
+compatibilidad sin extrapolación silenciosa.
+
 ## Bloqueo de OPERATOR-HANDSHAKE
 
 La extensión `FluidPointManifest/HpsRowManifest` no puede implementarse aún sin
