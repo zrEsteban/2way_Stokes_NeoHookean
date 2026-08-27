@@ -9,6 +9,13 @@ no representa una evaluación sobre el boundary deal.II real. El constructor C++
 productivo detectó la primera separación relativa `3.481e-5 h_face`, superior al
 límite `1e-8`; no se añadió proyección ni nearest-neighbour.
 
+`G2-A-GEOMETRY-AUDIT` determinó después la causa primaria `CAD_MISMATCH`. Las
+162 consultas incompatibles son exactamente las dos aristas superiores agudas
+del patch fluido frente a los filetes `r=7.5e-7 m` del sólido. La discrepancia
+máxima fluido→sólido es `4.166776747647578e-7 m`, esencialmente normal, y no es
+un defecto de búsqueda, marco, unidades o MappingQ1. G2-A productivo sigue
+incompleto hasta corregir la geometría en un subgate separado.
+
 Fecha: 2026-08-25  
 Commit de entrada: `4bcef5aca7988ea4aa7380a6a9072500476ddb95`  
 Estado: **PASS (especificación y arnés; transferencia productiva intacta)**

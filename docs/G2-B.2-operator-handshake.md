@@ -8,6 +8,13 @@ query 20 está separado del boundary 4 por `5.709e-8 m`, equivalente a
 del oracle Python era material. El handshake sigue pendiente; no deben añadirse
 sus mensajes hasta resolver explícitamente marco o proyección superficial.
 
+La auditoría geométrica dirigida resolvió la ambigüedad: clasificación primaria
+`CAD_MISMATCH`. `blockMesh` genera esquinas agudas y la malla sólida usa filetes
+circulares de `0.75 microm`. No hay `SEARCH_DEFECT` ni transformación de marco
+que lo explique, y una proyección simple no cumple trabajo/momento. La etapa B
+permanece bloqueada hasta un subgate de geometrías nominalmente coincidentes;
+no debe añadirse todavía `FluidPointManifest`/`HpsRowManifest`.
+
 Fecha: 2026-08-26
 
 Commit de entrada: `a33dbc305891ab4fd4744be1005532453f730dc2`

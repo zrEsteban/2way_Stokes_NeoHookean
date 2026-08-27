@@ -6,6 +6,12 @@ G2-A-RUNTIME-Q1 creó el constructor productivo, pero detectó una discrepancia
 geométrica relativa `3.481e-5 h_face` con `projectionMode=none`. Por ello el
 handshake del operador y G2-B.2 continúan pendientes desde la etapa B.
 
+`G2-A-GEOMETRY-AUDIT` clasificó posteriormente el bloqueo como `CAD_MISMATCH`:
+esquinas superiores agudas en el fluido frente a filetes estructurales de radio
+`7.5e-7 m`. El localizador acelerado coincide con la búsqueda exhaustiva y no
+se autorizó proyección. Por tanto G2-B.2 sigue bloqueado desde la etapa B hasta
+corregir las geometrías en un gate separado.
+
 ## Resultado de G2-B.2-OPERATOR-HANDSHAKE
 
 El retry dirigido quedó **BLOCKED en preflight**. La referencia G2-A construye

@@ -12,6 +12,13 @@ Estado corregido de G2-A:
 - `G2-A-RUNTIME-Q1 = BLOCKED_GEOMETRY`;
 - `G2-A-PRODUCTION = INCOMPLETE`.
 
+La auditoría posterior `G2-A-GEOMETRY-AUDIT` fue **PASS como auditoría** y
+clasificó la causa primaria como `CAD_MISMATCH`: el fluido tiene esquinas
+superiores agudas, mientras el sólido usa filetes circulares de radio
+`7.5e-7 m`. La búsqueda exhaustiva descartó un defecto del localizador. Véase
+`docs/G2-A-interface-geometry-audit.md`. Este resultado no desbloquea todavía
+el runtime Q1 ni cambia los estados anteriores.
+
 Los resultados offline siguen siendo válidos como demostración algebraica:
 `3520 x 4316`, 45 522 nonzeros, trabajo/fuerza/momento del orden de `1e-15` y
 reproducción del orden de `1e-18 m`. No prueban que el soporte coincida con la
@@ -49,7 +56,7 @@ DoFHandler, constraints, mapping y boundary ID, y consume el fixture versionado
 `dealiiSolid/robin-query.csv`. El fixture contiene únicamente IDs implícitos por
 orden canónico y coordenadas; no contiene conectividad, DoFs, CellId ni pesos.
 
-## Primera divergencia geométrica
+## Primera divergencia geométrica (diagnóstico inicial)
 
 Compilación de `dealiiPdmsSolid` y `testRuntimeQ1`: PASS. El constructor localizó
 las consultas 0--19. La primera consulta que no pertenece a la interfaz real es:
@@ -66,7 +73,10 @@ distancia/h_face   3.4811184906037607e-05
 tolerancia usada   1.6400002117320407e-13 m
 ```
 
-La separación relativa `3.48e-5` supera tanto la tolerancia usada (`1e-10 h`)
+`minBoxDistance` es la separación a la bounding box, no la distancia exacta a
+la cara. La auditoría exhaustiva posterior obtuvo `4.166776747647044e-7 m` a la
+superficie Q1, casi enteramente normal. La separación relativa inicial
+`3.48e-5` supera tanto la tolerancia usada (`1e-10 h`)
 como el máximo permitido por el gate (`1e-8 h`). No es error de redondeo ni un
 punto ambiguo de arista. El operador Python offline lo aceptaba porque buscaba
 celdas volumétricas y permitía extrapolación mediante su score. El runtime no
