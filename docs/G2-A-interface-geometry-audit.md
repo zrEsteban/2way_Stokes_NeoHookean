@@ -177,3 +177,11 @@ de forma reproducible ambas mallas coincidentes (o corrija una de ellas según l
 geometría física autorizada). No se debe escalar ni proyectar dentro de H_ps.
 Sólo después se reejecutará G2-A-RUNTIME-Q1 y, si pasa, se podrá reabrir
 G2-B.2-OPERATOR-HANDSHAKE. Esta auditoría no autoriza iniciar G3.
+
+## Seguimiento: canonicalización
+
+`G2-A-GEOMETRY-CANONICALIZATION` confirmó la autoridad física del filete y
+construyó una superficie discreta `FILLETED_MASTER` exactamente coincidente.
+El nuevo subgate quedó `BLOCKED_MESH_QUALITY`: la mejor malla fluida conserva
+652 celdas con determinante menor que `0.001`. No se instaló la candidata. Véase
+`docs/G2-A-canonical-interface-geometry.md`.

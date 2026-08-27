@@ -1,5 +1,9 @@
 # G2-B — integración productiva del operador dual
 
+> Estado geométrico 2026-08-27: `G2-A-GEOMETRY-CANONICALIZATION` permanece
+> `BLOCKED_MESH_QUALITY`. La superficie FILLETED_MASTER candidata coincide,
+> pero no está instalada y G2-B.2 no debe reabrirse todavía.
+
 ## Estado del constructor RuntimeQ1
 
 El constructor C++ canónico está integrado en PdmsSolid, pero el caso canónico

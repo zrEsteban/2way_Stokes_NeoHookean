@@ -15,6 +15,11 @@ que lo explique, y una proyección simple no cumple trabajo/momento. La etapa B
 permanece bloqueada hasta un subgate de geometrías nominalmente coincidentes;
 no debe añadirse todavía `FluidPointManifest`/`HpsRowManifest`.
 
+La geometría maestra filleted ya está especificada y su superficie candidata es
+coincidente, pero la malla volumétrica no supera `checkMesh`. El handshake sigue
+`BLOCKED`; no se reabre hasta resolver `BLOCKED_MESH_QUALITY` y repetir
+RuntimeQ1 sin reservas.
+
 Fecha: 2026-08-26
 
 Commit de entrada: `a33dbc305891ab4fd4744be1005532453f730dc2`

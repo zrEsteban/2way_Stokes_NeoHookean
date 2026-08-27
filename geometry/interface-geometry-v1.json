@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "geometryVersion": 1,
+  "coordinateFrame": "reference",
+  "units": "m",
+  "interfaceName": "pdmsMicrochannelInterface",
+  "origin": [0.0, 0.0, 0.0],
+  "orientation": {
+    "axialAxis": [1.0, 0.0, 0.0],
+    "widthAxis": [0.0, 1.0, 0.0],
+    "heightAxis": [0.0, 0.0, 1.0]
+  },
+  "dimensions": {
+    "length": 0.00492,
+    "width": 0.000492,
+    "height": 0.000033,
+    "sideWallThickness": 0.0005,
+    "roofThickness": 0.0005
+  },
+  "upperFillets": {
+    "radius": 0.00000075,
+    "leftCenter": [0.0, 0.00000075, 0.00003225],
+    "rightCenter": [0.0, 0.00049125, 0.00003225],
+    "leftTransitionAnglesDegrees": [90.0, 180.0],
+    "rightTransitionAnglesDegrees": [0.0, 90.0]
+  },
+  "extensions": {
+    "axial": [0.0, 0.00492],
+    "width": [0.0, 0.000492],
+    "height": [0.0, 0.000033]
+  },
+  "names": {
+    "fluidInterfacePatch": "interface",
+    "fluidInletPatch": "inlet",
+    "fluidOutletPatch": "outlet",
+    "fluidGlassPatch": "glass",
+    "structuralInterfaceBoundaryId": 4,
+    "structuralInterfacePhysicalName": "interface"
+  },
+  "masterRepresentation": "FILLETED_MASTER",
+  "discreteMaster": "dealII boundary 4 Q1 faces from solid.msh",
+  "mappingType": "MappingQ1",
+  "projectionMode": "none",
+  "discretization": {
+    "solidAxialCells": 3,
+    "fluidAxialCells": 80,
+    "fluidWidthCells": 24,
+    "fluidHeightCells": 10,
+    "filletChordCells": 1,
+    "fluidMeshingAlgorithm": 6,
+    "fluidRecombinationAlgorithm": 1,
+    "fluidSmoothingSteps": 100,
+    "fluidSideProgression": 0.65,
+    "solidNearSize": 0.000005,
+    "solidFarSize": 0.0001,
+    "fluidInteriorSize": 0.000008
+  },
+  "geometricTolerances": {
+    "runtimeRelativeMaximum": 1e-8,
+    "canonicalAbsolute": 1e-13,
+    "coplanarityAbsolute": 1e-14,
+    "areaRelativeSerial": 1e-12,
+    "areaRelativeMpi": 1e-10
+  },
+  "geometryContractHash": "b6f0e724f2b12893eb6e49f24904a070ef3e37b44d64ab5c455b6893ff46319b"
+}

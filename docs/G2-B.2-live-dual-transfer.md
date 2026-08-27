@@ -12,6 +12,10 @@ esquinas superiores agudas en el fluido frente a filetes estructurales de radio
 se autorizó proyección. Por tanto G2-B.2 sigue bloqueado desde la etapa B hasta
 corregir las geometrías en un gate separado.
 
+El gate de canonicalización no cerró ese requisito: la interfaz discreta pasa,
+pero la calidad volumétrica queda `BLOCKED_MESH_QUALITY`. No se instaló la malla
+candidata ni se avanzó a mensajes o transferencia live.
+
 ## Resultado de G2-B.2-OPERATOR-HANDSHAKE
 
 El retry dirigido quedó **BLOCKED en preflight**. La referencia G2-A construye

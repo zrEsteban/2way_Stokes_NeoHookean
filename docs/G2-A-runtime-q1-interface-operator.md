@@ -19,6 +19,12 @@ superiores agudas, mientras el sólido usa filetes circulares de radio
 `docs/G2-A-interface-geometry-audit.md`. Este resultado no desbloquea todavía
 el runtime Q1 ni cambia los estados anteriores.
 
+La canonicalización posterior produjo cero gaps y distancias bidireccionales
+nulas, pero se detuvo antes de revalidar este gate porque `checkMesh` falló la
+calidad volumétrica (652 celdas con determinante bajo). El operador original
+también conserva, como diagnóstico secundario, una ambigüedad numérica de fila
+en un punto de transición Q1. No se modificó ni relajó aquí.
+
 Los resultados offline siguen siendo válidos como demostración algebraica:
 `3520 x 4316`, 45 522 nonzeros, trabajo/fuerza/momento del orden de `1e-15` y
 reproducción del orden de `1e-18 m`. No prueban que el soporte coincida con la

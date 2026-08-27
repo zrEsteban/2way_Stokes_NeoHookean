@@ -16,6 +16,10 @@ máxima fluido→sólido es `4.166776747647578e-7 m`, esencialmente normal, y no
 un defecto de búsqueda, marco, unidades o MappingQ1. G2-A productivo sigue
 incompleto hasta corregir la geometría en un subgate separado.
 
+El subgate de canonicalización eligió `FILLETED_MASTER` y logró coincidencia
+discreta exacta, pero terminó `BLOCKED_MESH_QUALITY`; por tanto no sustituye aún
+al fixture offline ni permite declarar G2-A productivo PASS.
+
 Fecha: 2026-08-25  
 Commit de entrada: `4bcef5aca7988ea4aa7380a6a9072500476ddb95`  
 Estado: **PASS (especificación y arnés; transferencia productiva intacta)**

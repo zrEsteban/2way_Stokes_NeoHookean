@@ -1,0 +1,49 @@
+{
+  "classification": "BLOCKED_MESH_QUALITY",
+  "generationManifestHash": "dc5b1dd28d3bd46d14d2e206db5a3542f21d42525338aacdd5ba98fed8638ae9",
+  "geometryContractHash": "b6f0e724f2b12893eb6e49f24904a070ef3e37b44d64ab5c455b6893ff46319b",
+  "gmshVersion": "4.8.4",
+  "openfoamVersion": "v2512",
+  "solid": {
+    "cells": 3000,
+    "points": 4316,
+    "interfaceFaces": 324,
+    "sha256": "dace8367d5cab024d4136e3b1ffa350cdb479ca888568bba93cdda40a467dd9b"
+  },
+  "fluid": {
+    "cells": 19200,
+    "points": 22275,
+    "interfaceFaces": 3520,
+    "interfacePoints": 3645,
+    "mshSha256": "9193216a77e97cce8cbf1969af79776320533282a1d94fb628350b0967595cc1",
+    "polyMeshSemanticHash": "236d5e67f88eefdd435fc20d97da82109fd2bba0a5a429c5f0eaa1688789209b"
+  },
+  "interface": {
+    "fluidToSolidMaximum": 0.0,
+    "solidToFluidMaximum": 0.0,
+    "maximumInteriorSampleDistance": 3.3881317890172014e-20,
+    "relativeAreaError": 3.6455712153681766e-14,
+    "maximumOppositeNormalError": 2.220446049250313e-16,
+    "gaps": 0,
+    "overlaps": 0,
+    "nonCoplanarCrossingFaces": 0
+  },
+  "checkMesh": {
+    "meshOK": false,
+    "maximumAspectRatio": 133.00911075262155,
+    "maximumNonOrthogonalityDegrees": 66.28407734505635,
+    "maximumSkewness": 2.520031615958648,
+    "minimumVolume": 1.023694762590946e-16,
+    "minimumDeterminant": 6.512880915810036e-6,
+    "smallDeterminantCells": 652,
+    "minimumInterpolationWeight": 0.06423291827092756,
+    "failedChecks": 1
+  },
+  "runtimeQ1": {
+    "executedAfterQualityFailureForDiagnosisOnly": true,
+    "acceptedAllPoints": false,
+    "firstFailure": "incompatible interface rows at edge/vertex for queryPointId 729",
+    "operatorSourceModified": false,
+    "toleranceModified": false
+  }
+}
