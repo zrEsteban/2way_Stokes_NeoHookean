@@ -25,7 +25,12 @@ add_executable(testRuntimeNewton tests/test_runtime_newton.cc)
 target_include_directories(testRuntimeNewton PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 deal_ii_setup_target(testRuntimeNewton)
 
+add_executable(testExecutableProtocol tests/test_executable_protocol.cc)
+target_include_directories(testExecutableProtocol PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+deal_ii_setup_target(testExecutableProtocol)
+
 enable_testing()
 add_test(NAME neo_hookean_material COMMAND testNeoHookean)
 add_test(NAME time_integration COMMAND testTimeIntegration)
 add_test(NAME sign_convention COMMAND testSignConvention)
+add_test(NAME executable_protocol COMMAND testExecutableProtocol)

@@ -158,3 +158,11 @@ Reabrir primero **G2-B.1-EXEC-PROTOCOL** para:
 
 Después de aprobarlo, G2-B.2 podrá implementar el handshake live en el
 acoplador. G2-B.2 permanece **FAIL/BLOCKED** y G3 no se inició.
+
+## Resolución por G2-B.1-EXEC-PROTOCOL
+
+El ejecutable ya recibe `DofManifest`, `OperatorManifest`, fuerza, tangente y
+activación atómica desde un proceso externo mediante el protocolo versionado.
+Las pruebas serial/MPI y negativas son PASS. El bloqueo de preflight queda
+resuelto y la ruta estructural está lista para un futuro retry de G2-B.2. Este
+subgate no modificó el acoplador, no reintentó G2-B.2 y no activó casos duales.

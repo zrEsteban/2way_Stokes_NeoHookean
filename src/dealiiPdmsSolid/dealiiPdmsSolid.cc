@@ -33,6 +33,7 @@
 #include "TimeIntegration.H"
 #include "InterfaceSparsityExtension.H"
 #include "GeneralizedInterfaceLoad.H"
+#include "ExecutableProtocol.H"
 
 using namespace dealii;
 
@@ -122,7 +123,13 @@ public:
   explicit PdmsSolid(ParameterHandler &parameters)
     : prm(parameters), fe(FE_Q<dim>(1), dim), dofs(mesh) {}
   void run();
+  void run_executable_protocol();
   void initialize_runtime() { read_mesh(); setup(); }
+  void prepare_executable_protocol() { read_mesh(); prepare_setup(); }
+  void finish_executable_protocol(const interface_sparsity::Manifest &manifest,
+                                  const generalized_interface::Expected &expected)
+  { finish_setup(&manifest,&expected); }
+  std::string dof_manifest_payload(std::string &hash) const;
   void set_generalized_interface_data(
     const generalized_interface::ForceMessage &force,
     const generalized_interface::TangentMessage &tangent)
@@ -173,6 +180,7 @@ public:
   { return interface_node_dofs; }
   const AffineConstraints<double> &runtime_constraints() const { return constraints; }
   const SparsityPattern &runtime_sparsity() const { return sparsity; }
+  std::string runtime_assembly_diagnostic();
 
 private:
   void receive_generalized_pair_if_complete()
@@ -181,6 +189,9 @@ private:
       generalized_load->receive(*provisional_force,*provisional_tangent);
   }
   void read_mesh();
+  void prepare_setup();
+  void finish_setup(const interface_sparsity::Manifest *manifest_override=nullptr,
+                    const generalized_interface::Expected *expected_override=nullptr);
   void setup();
   double assemble_newton(const std::vector<Sample> &samples);
   void solve_newton(const std::vector<Sample> &samples);
@@ -205,6 +216,7 @@ private:
   std::unique_ptr<generalized_interface::Expected> runtime_expected;
   std::unique_ptr<generalized_interface::ForceMessage> provisional_force;
   std::unique_ptr<generalized_interface::TangentMessage> provisional_tangent;
+  std::unique_ptr<DynamicSparsityPattern> pending_sparsity;
 };
 
 void PdmsSolid::read_mesh()
@@ -218,22 +230,39 @@ void PdmsSolid::read_mesh()
 
 void PdmsSolid::setup()
 {
+  prepare_setup();
+  finish_setup();
+}
+
+void PdmsSolid::prepare_setup()
+{
   dofs.distribute_dofs(fe);
   constraints.clear();
   for (const std::string key : {"clamped boundary 1", "clamped boundary 2", "clamped boundary 3"})
     VectorTools::interpolate_boundary_values(
       dofs, prm.get_integer(key), Functions::ZeroFunction<dim>(dim), constraints);
   constraints.close();
-  DynamicSparsityPattern dsp(dofs.n_dofs());
-  DoFTools::make_sparsity_pattern(dofs, dsp, constraints, false);
+  pending_sparsity=std::make_unique<DynamicSparsityPattern>(dofs.n_dofs());
+  DoFTools::make_sparsity_pattern(dofs, *pending_sparsity, constraints, false);
+}
+
+void PdmsSolid::finish_setup(const interface_sparsity::Manifest *manifest_override,
+                             const generalized_interface::Expected *expected_override)
+{
+  AssertThrow(pending_sparsity,ExcMessage("setup finalized without prepared sparsity"));
+  DynamicSparsityPattern &dsp=*pending_sparsity;
   const std::string transfer=prm.get("interface transfer");
   if (transfer=="dualConservative")
     {
-      const std::string manifest_path=prm.get("interface manifest");
-      AssertThrow(!manifest_path.empty(),ExcMessage(
-        "dualConservative requires interface manifest before matrix reinit"));
-      const auto manifest=interface_sparsity::read_manifest(manifest_path);
-      const std::string expected_hash=prm.get("interface graph hash");
+      interface_sparsity::Manifest loaded;
+      if (!manifest_override)
+        { const std::string path=prm.get("interface manifest");
+          AssertThrow(!path.empty(),ExcMessage(
+            "dualConservative requires interface manifest before matrix reinit"));
+          loaded=interface_sparsity::read_manifest(path); }
+      const auto &manifest=manifest_override ? *manifest_override : loaded;
+      const std::string expected_hash=expected_override ? expected_override->hash_graph
+                                                        : prm.get("interface graph hash");
       AssertThrow(!expected_hash.empty() && manifest.hash_graph==expected_hash,
                   ExcMessage("interface manifest hashGraph mismatch"));
       const auto node_dofs=interface_sparsity::map_nodes_to_dofs<dim>(manifest,dofs);
@@ -250,16 +279,18 @@ void PdmsSolid::setup()
           interface_components[node[component]]=component;
     }
   sparsity.copy_from(dsp);
+  pending_sparsity.reset();
   matrix.reinit(sparsity);
   if (transfer=="dualConservative")
     {
-      generalized_interface::Expected expected{
+      generalized_interface::Expected configured{
         static_cast<unsigned int>(prm.get_integer("interface time index")),
         static_cast<unsigned int>(prm.get_integer("interface outer corrector")),
         static_cast<std::uint64_t>(prm.get_integer("interface operator version")),
         static_cast<std::uint64_t>(prm.get_integer("interface z version")),
         prm.get("interface graph hash"),prm.get("interface weights hash"),
         prm.get("interface dof manifest hash")};
+      const auto &expected=expected_override ? *expected_override : configured;
       AssertThrow(!expected.hash_weights.empty() && !expected.dof_manifest_hash.empty(),
                   ExcMessage("dualConservative requires all runtime hashes"));
       runtime_expected=std::make_unique<generalized_interface::Expected>(expected);
@@ -273,6 +304,79 @@ void PdmsSolid::setup()
   older_velocity.reinit(dofs.n_dofs());
   rhs.reinit(dofs.n_dofs());
   read_state();
+}
+
+std::string PdmsSolid::dof_manifest_payload(std::string &hash) const
+{
+  std::map<types::global_dof_index,Point<dim>> support;
+  DoFTools::map_dofs_to_support_points(MappingQ1<dim>(),dofs,support);
+  std::vector<unsigned int> components(dofs.n_dofs(),numbers::invalid_unsigned_int);
+  std::vector<types::global_dof_index> local(fe.n_dofs_per_cell());
+  for (const auto &cell:dofs.active_cell_iterators())
+    { cell->get_dof_indices(local); for (unsigned int i=0;i<local.size();++i)
+        components[local[i]]=fe.system_to_component_index(i).first; }
+  std::ostringstream body; body << std::setprecision(17)
+    << "schemaVersion 1\ndimension " << dim << "\nscalarBytes " << sizeof(double)
+    << "\nreplicatedMatrix 1\nentries " << dofs.n_dofs() << '\n';
+  for (types::global_dof_index id=0;id<dofs.n_dofs();++id)
+    { const auto &p=support.at(id); body << id << ' ' << components[id] << ' '
+        << p[0] << ' ' << p[1] << ' ' << p[2] << " 0 "
+        << (constraints.is_constrained(id) ? 1 : 0) << '\n'; }
+  body << "end\n";
+  std::ostringstream value; value << std::hex << executable_protocol::fnv(body.str());
+  hash=value.str(); return "dofManifestHash "+hash+"\n"+body.str();
+}
+
+std::string PdmsSolid::runtime_assembly_diagnostic()
+{
+  Vector<double> interface_rhs(rhs.size());
+  SparseMatrix<double> interface_matrix; interface_matrix.reinit(sparsity);
+  generalized_load->add_to_newton(interface_rhs,interface_matrix);
+  double interface_matrix_norm=0; std::size_t interface_entries=0;
+  for (unsigned int i=0;i<interface_matrix.m();++i)
+    for (auto entry=interface_matrix.begin(i);entry!=interface_matrix.end(i);++entry)
+      if (entry->value()!=0)
+        { interface_matrix_norm+=entry->value()*entry->value(); ++interface_entries; }
+  assemble_newton({});
+  const Vector<double> first_rhs(rhs);
+  SparseMatrix<double> first_matrix; first_matrix.reinit(sparsity); first_matrix.copy_from(matrix);
+  assemble_newton({});
+  Vector<double> rhs_delta(rhs); rhs_delta-=first_rhs;
+  double matrix_delta=0,matrix_norm=0;
+  std::ostringstream canonical; canonical << std::hexfloat;
+  for (unsigned int i=0;i<matrix.m();++i)
+    for (auto entry=matrix.begin(i);entry!=matrix.end(i);++entry)
+      { const double prior=first_matrix.el(i,entry->column());
+        matrix_delta=std::max(matrix_delta,std::abs(entry->value()-prior));
+        matrix_norm+=entry->value()*entry->value();
+        if (entry->value()!=0) canonical << i << ' ' << entry->column() << ' '
+                                         << entry->value() << '\n'; }
+  std::ostringstream rhs_text; rhs_text << std::hexfloat;
+  for (unsigned int i=0;i<rhs.size();++i) if (rhs[i]!=0) rhs_text << i << ' ' << rhs[i] << '\n';
+  const std::uint64_t rhs_hash=executable_protocol::fnv(rhs_text.str());
+  const std::uint64_t jacobian_hash=executable_protocol::fnv(canonical.str());
+  const unsigned int ranks=Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  AssertThrow(Utilities::MPI::min(rhs.l2_norm(),MPI_COMM_WORLD)==
+              Utilities::MPI::max(rhs.l2_norm(),MPI_COMM_WORLD),
+              ExcMessage("replicated residual norm mismatch"));
+  AssertThrow(Utilities::MPI::min(std::sqrt(matrix_norm),MPI_COMM_WORLD)==
+              Utilities::MPI::max(std::sqrt(matrix_norm),MPI_COMM_WORLD),
+              ExcMessage("replicated Jacobian norm mismatch"));
+  AssertThrow(Utilities::MPI::min(rhs_hash,MPI_COMM_WORLD)==
+              Utilities::MPI::max(rhs_hash,MPI_COMM_WORLD) &&
+              Utilities::MPI::min(jacobian_hash,MPI_COMM_WORLD)==
+              Utilities::MPI::max(jacobian_hash,MPI_COMM_WORLD),
+              ExcMessage("replicated residual/Jacobian checksum mismatch"));
+  std::ostringstream out; out << std::setprecision(17)
+    << "ranks " << ranks << "\nrhsNorm " << rhs.l2_norm()
+    << "\njacobianNorm " << std::sqrt(matrix_norm)
+    << "\nrhsChecksum " << rhs_hash << "\njacobianChecksum " << jacobian_hash
+    << "\ninterfaceRhsNorm " << interface_rhs.l2_norm()
+    << "\ninterfaceJacobianNorm " << std::sqrt(interface_matrix_norm)
+    << "\ninterfaceJacobianEntries " << interface_entries
+    << "\nrhsRepeatError " << rhs_delta.l2_norm()
+    << "\njacobianRepeatError " << matrix_delta << "\nassemblies 2\nend\n";
+  return out.str();
 }
 
 void PdmsSolid::read_state()
@@ -585,13 +689,152 @@ void PdmsSolid::write_results(const std::vector<Sample> &samples,
   data.write_vtu(vtk);
 }
 
+void PdmsSolid::run_executable_protocol()
+{
+  const unsigned int rank=Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  std::unique_ptr<executable_protocol::UnixChannel> channel;
+  if (rank==0) channel=std::make_unique<executable_protocol::UnixChannel>(
+    prm.get("protocol endpoint"),prm.get_integer("protocol timeout seconds"));
+  const auto receive=[&]()
+    {
+      std::string wire,error;
+      if (rank==0)
+        try { wire=executable_protocol::encode(channel->receive()); }
+        catch (const std::exception &failure) { error=failure.what(); }
+      error=Utilities::MPI::broadcast(MPI_COMM_WORLD,error,0);
+      AssertThrow(error.empty(),ExcMessage("external frame rejected: "+error));
+      wire=Utilities::MPI::broadcast(MPI_COMM_WORLD,wire,0);
+      return executable_protocol::decode(wire);
+    };
+  const auto send=[&](const executable_protocol::Type type,const executable_protocol::Frame &request,
+                      const std::string &payload)
+    { if (rank==0) { executable_protocol::Frame reply; reply.message_type=type;
+        reply.sequence=request.sequence; reply.producer="dealiiPdmsSolid";
+        reply.time_index=request.time_index; reply.outer_corrector=request.outer_corrector;
+        reply.operator_version=request.operator_version; reply.payload=payload; channel->send(reply); } };
+  executable_protocol::Frame current;
+  try
+    {
+      current=receive();
+      AssertThrow(current.message_type==executable_protocol::Type::Hello,
+                  ExcMessage("AwaitingHello: expected Hello"));
+      AssertThrow(current.payload==
+        "dimension 3\nscalarBytes 8\nsignConvention R=Rs-fGamma;J=Js+JGamma\n"
+        "forceUnits N\ntangentUnits N/m\ntimeIntegration BE,BDF2\nreplicatedMatrix 1\nend\n",
+        ExcMessage("Hello capabilities mismatch"));
+      send(executable_protocol::Type::Capabilities,current,current.payload);
+
+      prepare_executable_protocol();
+      std::string dof_hash; const std::string dof_payload=dof_manifest_payload(dof_hash);
+      send(executable_protocol::Type::DofManifest,current,dof_payload);
+
+      current=receive();
+      AssertThrow(current.message_type==executable_protocol::Type::OperatorManifest,
+                  ExcMessage("AwaitingOperatorManifest: expected OperatorManifest"));
+      std::istringstream metadata(current.payload); std::string key,graph,weights,units,sign;
+      std::uint64_t operator_version=0,z_version=0; std::size_t manifest_length=0;
+      metadata >> key >> graph; AssertThrow(key=="hashGraph",ExcMessage("missing hashGraph"));
+      metadata >> key >> weights; AssertThrow(key=="hashWeights",ExcMessage("missing hashWeights"));
+      metadata >> key >> operator_version; AssertThrow(key=="operatorVersion",ExcMessage("missing operatorVersion"));
+      metadata >> key >> z_version; AssertThrow(key=="zVersion",ExcMessage("missing zVersion"));
+      metadata >> key >> units; AssertThrow(key=="units" && units=="H:1,W:m2",ExcMessage("operator units mismatch"));
+      metadata >> key; std::getline(metadata,sign); AssertThrow(key=="sign" && sign==" fGamma=-HtWtf",ExcMessage("operator sign mismatch"));
+      metadata >> key >> manifest_length; AssertThrow(key=="manifestBytes",ExcMessage("missing manifestBytes"));
+      metadata.get(); const std::streampos position=metadata.tellg();
+      AssertThrow(position>=0 && current.payload.size()==static_cast<std::size_t>(position)+manifest_length,
+                  ExcMessage("operator manifest length/trailing bytes mismatch"));
+      const std::string manifest_text=current.payload.substr(static_cast<std::size_t>(position));
+      const auto manifest=interface_sparsity::read_manifest_text(manifest_text);
+      AssertThrow(manifest.hash_graph==graph && current.operator_version==operator_version,
+                  ExcMessage("operator manifest hashes/version mismatch"));
+      generalized_interface::Expected expected{
+        static_cast<unsigned int>(current.time_index),static_cast<unsigned int>(current.outer_corrector),
+        operator_version,z_version,graph,weights,dof_hash};
+      finish_executable_protocol(manifest,expected);
+      send(executable_protocol::Type::Ready,current,
+           "hashGraph "+graph+"\nhashWeights "+weights+"\ndofManifestHash "+dof_hash+"\nend\n");
+
+      std::unique_ptr<executable_protocol::Frame> pending_force,pending_tangent;
+      std::map<std::uint64_t,std::uint64_t> seen;
+      std::uint64_t expected_time=current.time_index,expected_outer=current.outer_corrector;
+      for (;;)
+        {
+          current=receive();
+          const auto prior=seen.find(current.sequence);
+          if (prior!=seen.end())
+            { AssertThrow(prior->second==current.message_checksum,
+                          ExcMessage("sequenceNumber replay with different content"));
+              send(executable_protocol::Type::Ack,current,"idempotent 1\nend\n"); continue; }
+          seen.emplace(current.sequence,current.message_checksum);
+          if (current.message_type==executable_protocol::Type::ForceMessage)
+            { (void)executable_protocol::parse_force(current);
+              pending_force=std::make_unique<executable_protocol::Frame>(current);
+              send(executable_protocol::Type::Ack,current,"pending ForceMessage\nend\n"); }
+          else if (current.message_type==executable_protocol::Type::TangentMessage)
+            { (void)executable_protocol::parse_tangent(current);
+              pending_tangent=std::make_unique<executable_protocol::Frame>(current);
+              send(executable_protocol::Type::Ack,current,"pending TangentMessage\nend\n"); }
+          else if (current.message_type==executable_protocol::Type::ClearProvisionalState)
+            { AssertThrow((current.time_index==expected_time && current.outer_corrector==expected_outer+1) ||
+                          (current.time_index==expected_time+1 && current.outer_corrector==1),
+                          ExcMessage("invalid corrector transition"));
+              expected_time=current.time_index; expected_outer=current.outer_corrector;
+              pending_force.reset(); pending_tangent.reset();
+              clear_provisional_generalized_interface_state();
+              send(executable_protocol::Type::Ack,current,"cleared 1\nend\n"); }
+          else if (current.message_type==executable_protocol::Type::ActivateCorrectorState)
+            {
+              AssertThrow(pending_force && pending_tangent,ExcMessage("incomplete corrector state"));
+              AssertThrow(current.time_index==expected_time && current.outer_corrector==expected_outer,
+                          ExcMessage("stale or future corrector activation"));
+              std::istringstream activation(current.payload); std::uint64_t force_checksum=0,tangent_checksum=0;
+              std::string activation_graph,activation_weights;
+              activation >> key >> force_checksum; AssertThrow(key=="forceMessageChecksum",ExcMessage("missing force checksum"));
+              activation >> key >> tangent_checksum; AssertThrow(key=="tangentMessageChecksum",ExcMessage("missing tangent checksum"));
+              activation >> key >> activation_graph; AssertThrow(key=="hashGraph",ExcMessage("missing activation graph"));
+              activation >> key >> activation_weights; AssertThrow(key=="hashWeights",ExcMessage("missing activation weights"));
+              activation >> key; AssertThrow(key=="end",ExcMessage("truncated activation")); activation >> std::ws;
+              AssertThrow(activation.eof() && force_checksum==pending_force->message_checksum &&
+                tangent_checksum==pending_tangent->message_checksum && activation_graph==graph &&
+                activation_weights==weights,ExcMessage("ActivateCorrectorState mismatch"));
+              AssertThrow(current.time_index==pending_force->time_index &&
+                current.outer_corrector==pending_force->outer_corrector &&
+                current.operator_version==pending_force->operator_version &&
+                current.time_index==pending_tangent->time_index &&
+                current.outer_corrector==pending_tangent->outer_corrector &&
+                current.operator_version==pending_tangent->operator_version,
+                ExcMessage("corrector stamp mismatch"));
+              const generalized_interface::Expected active{
+                static_cast<unsigned int>(current.time_index),static_cast<unsigned int>(current.outer_corrector),
+                current.operator_version,z_version,graph,weights,dof_hash};
+              begin_generalized_interface_corrector(active);
+              set_generalized_interface_data(executable_protocol::parse_force(*pending_force),
+                                             executable_protocol::parse_tangent(*pending_tangent));
+              send(executable_protocol::Type::Ack,current,"activated 1\nend\n");
+              send(executable_protocol::Type::AssemblyResult,current,runtime_assembly_diagnostic());
+            }
+          else if (current.message_type==executable_protocol::Type::Shutdown)
+            { pending_force.reset(); pending_tangent.reset();
+              clear_provisional_generalized_interface_state();
+              send(executable_protocol::Type::Ack,current,"shutdown 1\nend\n"); break; }
+          else AssertThrow(false,ExcMessage("unexpected message in Ready state"));
+        }
+    }
+  catch (const std::exception &error)
+    {
+      if (rank==0 && channel)
+        try { send(executable_protocol::Type::Nack,current,
+                   std::string("error ")+error.what()+"\nend\n"); } catch (...) {}
+      throw;
+    }
+}
+
 void PdmsSolid::run()
 {
+  if (prm.get("interface transfer")=="dualConservative")
+    { run_executable_protocol(); return; }
   read_mesh();
   setup();
-  AssertThrow(prm.get("interface transfer")=="legacyNearestNeighbour",
-              ExcMessage("dualConservative runtime API is available, but the standalone "
-                         "executable has no live transport; inject data before assemble_newton"));
   const auto samples = read_samples(prm.get("input"));
   const auto queries = read_query_points(prm.get("query input"));
   solve_newton(samples);
@@ -633,6 +876,8 @@ int main(int argc, char **argv)
       prm.declare_entry("interface outer corrector", "0", Patterns::Integer(0));
       prm.declare_entry("interface operator version", "0", Patterns::Integer(0));
       prm.declare_entry("interface z version", "0", Patterns::Integer(0));
+      prm.declare_entry("protocol endpoint", "", Patterns::Anything());
+      prm.declare_entry("protocol timeout seconds", "10", Patterns::Integer(1,3600));
       prm.declare_entry("interface boundary", "4", Patterns::Integer(0));
       prm.declare_entry("clamped boundary 1", "1", Patterns::Integer(0));
       prm.declare_entry("clamped boundary 2", "2", Patterns::Integer(0));
@@ -651,7 +896,15 @@ int main(int argc, char **argv)
       prm.declare_entry("ssor relaxation", "1.2", Patterns::Double(0,2));
       AssertThrow(argc == 2, ExcMessage("usage: dealiiPdmsSolid parameters.prm"));
       prm.parse_input(argv[1]);
-      PdmsSolid(prm).run();
+      if (prm.get("interface transfer")=="dualConservative")
+        {
+          AssertThrow(!prm.get("protocol endpoint").empty(),
+                      ExcMessage("dualConservative requires protocol endpoint"));
+          Utilities::MPI::MPI_InitFinalize mpi(argc,argv,1);
+          PdmsSolid(prm).run();
+        }
+      else
+        PdmsSolid(prm).run();
     }
   catch (const std::exception &e)
     {

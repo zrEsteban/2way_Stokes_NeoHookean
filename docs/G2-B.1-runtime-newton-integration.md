@@ -6,6 +6,10 @@ Commit de entrada: `11fc7942615e3e9da1b08727a1e4aa4394baa7c0`
 
 Estado: **PASS; G2-B.2 queda pendiente**
 
+El subgate posterior G2-B.1-EXEC-PROTOCOL expuso esta misma ruta mediante el
+binario separado, con socket versionado y participante externo. Véase
+`docs/G2-B.1-executable-protocol.md`.
+
 ## Ruta y signo
 
 `PdmsSolid::assemble_newton()` comienza cada evaluación con `matrix=0` y

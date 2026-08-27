@@ -7,6 +7,10 @@ Commit de entrada: `61cc77b4b7e02bfe5ab7aa7bf4c1a03bf37a995a`
 Estado histórico del commit `f88684c`: **PASS sólo en arnés**. La integración
 productiva requerida se completó posteriormente en G2-B.1-RUNTIME.
 
+Estado actual: **PASS también a través del ejecutable separado** tras
+G2-B.1-EXEC-PROTOCOL; el framing, handshake y pruebas externas se documentan
+en `docs/G2-B.1-executable-protocol.md`.
+
 ## Convención residual y tangente
 
 Se eligió la alternativa B. La API recibe dos objetos inequívocos:

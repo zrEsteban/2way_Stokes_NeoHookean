@@ -29,10 +29,8 @@ struct Manifest
   std::vector<Row> rows;
 };
 
-inline Manifest read_manifest(const std::string &path)
+inline Manifest read_manifest(std::istream &in)
 {
-  std::ifstream in(path);
-  AssertThrow(in, dealii::ExcMessage("Cannot open interface manifest: " + path));
   std::string word; unsigned int version=0;
   in >> word >> version;
   AssertThrow(word=="G2B1A_INTERFACE_GRAPH" && version==1,
@@ -62,6 +60,22 @@ inline Manifest read_manifest(const std::string &path)
   in >> word;
   AssertThrow(in && word=="end",dealii::ExcMessage("Truncated interface manifest"));
   return m;
+}
+
+inline Manifest read_manifest(const std::string &path)
+{
+  std::ifstream in(path);
+  AssertThrow(in, dealii::ExcMessage("Cannot open interface manifest: " + path));
+  return read_manifest(in);
+}
+
+inline Manifest read_manifest_text(const std::string &text)
+{
+  std::istringstream in(text);
+  const auto manifest=read_manifest(in);
+  in >> std::ws;
+  AssertThrow(in.eof(),dealii::ExcMessage("Trailing bytes in interface manifest"));
+  return manifest;
 }
 
 template <int dim>

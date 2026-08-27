@@ -197,3 +197,12 @@ binario es por ello **FAIL**. En cumplimiento del orden obligatorio no se tocó
 el acoplador, no se activó dual y no se reintentaron casos FSI. El cambio
 mínimo pendiente es G2-B.1-EXEC-PROTOCOL; la evidencia está en
 `docs/G2-B.2-live-dual-transfer.md`.
+
+## Estado posterior a G2-B.1-EXEC-PROTOCOL
+
+El cambio mínimo ya está implementado y aprobado: `dealiiPdmsSolid` expone la
+API runtime mediante un socket Unix enmarcado/versionado, exporta el manifiesto
+DoF, recibe el operador antes de `SparseMatrix::reinit()` y activa fuerza y
+tangente conjuntamente. El participante externo pasa serial/MPI-2/MPI-4 y las
+pruebas negativas. G2-B.2 puede reabrirse en un gate explícito posterior, pero
+no fue reintentado aquí; producción FSI continúa legacy.
