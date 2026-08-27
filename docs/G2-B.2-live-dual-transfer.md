@@ -1,5 +1,68 @@
 # G2-B.2 — conexión dual viva FVM–FEM
 
+## G2-B.2-LIVE — resultado dirigido (2026-08-26)
+
+Commit de entrada: `78c30e9da778e2daa1bd75794bb56bed618a880f`.
+
+Estado: **FAIL/BLOCKED en la etapa B (handshake), clase B — OPERATOR**.
+G2 global permanece abierto. No se inició G3.
+
+El preflight obligatorio pasó sin modificar el acoplador: el protocolo externo
+produjo `||DeltaR||=1`, `||DeltaJ||=100`, repetición `R/J=0/0` en serial,
+MPI-2 y MPI-4. Pasaron las 26 corrupciones/fallos vectorizados del script; junto
+con el aborto sin participante documentado por EXEC-PROTOCOL, son los 27
+controles negativos aprobados. La regresión runtime produjo
+error FD `1.02721e-11` y error 2 con el signo deliberadamente invertido en los
+tres tamaños MPI.
+
+### Frontera bidireccional añadida antes del acoplador
+
+El protocolo carecía de cinemática estructural. Se añadieron mensajes
+`RequestStructuralState` y `StructuralStateMessage` al mismo framing/socket,
+con estado `accepted|provisional`, esquema `BE|BDF2`, unidades explícitas y
+entradas canónicas `(global_dof_id, componente, d, v, a)`. También se añadieron
+`AcceptTimeStep`, `RejectTimeStep` y `RollbackToAcceptedState`. La aceptación
+desplaza las historias una sola vez y el rollback restaura el estado aceptado;
+la aceleración aceptada se persiste en el estado extendido (los estados antiguos
+siguen siendo legibles). Un proceso externo real recibió y validó el mensaje en
+serial, MPI-2 y MPI-4. Una fuerza nula continúa siendo válida por flag, no por
+norma.
+
+### Primer fallo de la secuencia
+
+La etapa B no puede construir el operador productivo exigido. El `DofManifest`
+actual contiene IDs, componentes, coordenadas de soporte, ownership lógico y
+restricciones, pero **no contiene la conectividad de las celdas Q1 ni el soporte
+de las funciones de forma**. G2-A obtiene `H_ps` localizando cada punto FVM en
+un hexaedro estructural y evaluando sus ocho funciones Q1. Ese resultado no se
+puede deducir de una nube de DoFs: dos triangulaciones con los mismos puntos
+pueden tener conectividad distinta y producir operadores distintos.
+
+Por tanto, `robinRobinCoupling` no puede validar ni reproducir entrada por
+entrada el H de G2-A usando el handshake aprobado. Usar nearest-neighbour,
+releer `solid.msh` por una ruta personal o reutilizar los CSV legacy violaría
+los criterios del gate. Conforme al orden A--Q, se detuvo antes de modificar
+`src/robinRobinCoupling`; no se ejecutaron C--Q, casos duales ni baseline fuerte.
+
+### Cambio mínimo para reabrir LIVE
+
+Versionar una ampliación del manifiesto, antes de conectar OpenFOAM, eligiendo
+una representación inequívoca:
+
+1. incluir en `DofManifest` la conectividad global de cada celda Q1, el orden
+   deal.II de vértices y los tres DoFs/componentes por nodo; o
+2. añadir una fase `FluidPointManifest` y hacer que deal.II devuelva las filas
+   canónicas de `H_ps` evaluadas con su `DoFHandler`.
+
+La segunda opción reduce duplicación geométrica y garantiza que el operador
+proviene del FE real. Debe conservar checksums, hashes, sesión y validación MPI,
+y alimentar el mismo `OperatorManifest` usado para ampliar el patrón. Sólo tras
+esa prueba puede comenzar la modificación de `robinRobinCoupling`.
+
+Clasificación: `PROTOCOL=PASS` para la frontera ejecutable existente,
+`OPERATOR=FAIL` por manifiesto insuficiente; `ALGEBRA`, `MPI` live, `LIFECYCLE`
+live y `SPECTRAL` no fueron alcanzados.
+
 Fecha: 2026-08-26
 
 Commit de entrada: `f88684c877ee91a88f14356a1c7ee939c6652a66`

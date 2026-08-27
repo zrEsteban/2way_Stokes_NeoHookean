@@ -91,6 +91,13 @@ def main():
           f"units H:1,W:m2\nsign fGamma=-HtWtf\nmanifestBytes {len(manifest.encode())}\n"+manifest)
         send(client,"OperatorManifest",2,operator_payload)
         kind,_,ready=receive(client); assert kind=="Ready" and dof_hash in ready
+        send(client,"RequestStructuralState",19,"stateKind accepted\nend\n")
+        kind,_,state=receive(client); assert kind=="StructuralStateMessage"
+        state_lines=state.splitlines()
+        assert "stateKind accepted" in state_lines and "displacementUnits m" in state_lines
+        assert "velocityUnits m/s" in state_lines and "accelerationUnits m/s2" in state_lines
+        state_entries=int(next(line.split()[1] for line in state_lines if line.startswith("entries ")))
+        assert state_entries>0 and len([line for line in state_lines if line and line[0].isdigit()])==state_entries
         common=f"zVersion 5\nhashGraph {graph}\nhashWeights weights-v1\ndofManifestHash {dof_hash}\n"
         force_payload=common+f"units N\nentries 1\n{dof} {component} 1\nend\n"
         tangent_payload=common+f"units N/m\nentries 1\n{dof} {dof} 100\nend\n"

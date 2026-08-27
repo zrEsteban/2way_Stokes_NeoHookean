@@ -29,14 +29,18 @@ const std::string magic="G2B1_EXEC";
 enum class Type
 {
   Hello,Capabilities,DofManifest,OperatorManifest,ForceMessage,TangentMessage,
-  ActivateCorrectorState,ClearProvisionalState,Ready,Ack,Nack,AssemblyResult,Shutdown
+  ActivateCorrectorState,ClearProvisionalState,Ready,Ack,Nack,AssemblyResult,
+  RequestStructuralState,StructuralStateMessage,AcceptTimeStep,RejectTimeStep,
+  RollbackToAcceptedState,Shutdown
 };
 
 inline std::string name(const Type type)
 {
   static const char *names[]={"Hello","Capabilities","DofManifest","OperatorManifest",
     "ForceMessage","TangentMessage","ActivateCorrectorState","ClearProvisionalState",
-    "Ready","Ack","Nack","AssemblyResult","Shutdown"};
+    "Ready","Ack","Nack","AssemblyResult","RequestStructuralState",
+    "StructuralStateMessage","AcceptTimeStep","RejectTimeStep",
+    "RollbackToAcceptedState","Shutdown"};
   return names[static_cast<unsigned int>(type)];
 }
 

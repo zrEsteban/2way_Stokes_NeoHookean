@@ -30,6 +30,8 @@ int main()
   bool unknown=false;
   try { (void)type("Unknown"); } catch (const std::exception &) { unknown=true; }
   require(unknown);
+  require(type("StructuralStateMessage")==Type::StructuralStateMessage);
+  require(type("AcceptTimeStep")==Type::AcceptTimeStep);
   Frame too_large; too_large.payload.assign(max_payload+1,'x');
   bool limited=false; try { (void)encode(too_large); }
   catch (const std::exception &) { limited=true; }

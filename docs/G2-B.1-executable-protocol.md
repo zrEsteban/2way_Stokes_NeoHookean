@@ -1,5 +1,19 @@
 # G2-B.1-EXEC-PROTOCOL — protocolo del ejecutable estructural
 
+## Extensión cinemática requerida por G2-B.2-LIVE
+
+El protocolo expone ahora `StructuralStateMessage` mediante una solicitud
+versionada, usando el mismo canal Unix y la difusión colectiva rank-0. El
+payload canónico contiene estado aceptado/provisional, BE/BDF2, unidades y
+`(global_dof_id, componente, d, v, a)`. Las pruebas externas serial/MPI-2/MPI-4
+pasan. Se añadieron mensajes explícitos de aceptación, rechazo y rollback; no
+se persiste estado provisional.
+
+Esta extensión no cambia el PASS de EXEC-PROTOCOL. La auditoría LIVE detectó
+separadamente que `DofManifest` aún no contiene conectividad/soportes Q1
+suficientes para construir `H_ps`; esa limitación bloquea G2-B.2, no la entrega
+de fuerza/tangente ya aprobada aquí.
+
 Fecha: 2026-08-26
 
 Commit de entrada: `d77d9e6a493ca74436bdd849a918836bceb20889`

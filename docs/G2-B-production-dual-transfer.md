@@ -1,5 +1,14 @@
 # G2-B — integración productiva del operador dual
 
+## Estado tras G2-B.2-LIVE
+
+G2-B.2 permanece abierto. La cinemática estructural ya cruza el socket mediante
+`StructuralStateMessage`, pero el handshake se detuvo antes de modificar el
+acoplador: el `DofManifest` no describe conectividad/soportes Q1 y por ello no
+permite construir el `H_ps` exacto de G2-A. La clasificación es **OPERATOR**,
+no estabilidad espectral. Producción continúa exclusivamente en
+`legacyNearestNeighbour` y G3 no se inició.
+
 Fecha: 2026-08-25  
 Commit de entrada: `9130bd35d24dd577ff4ba6d88d504f968dac95c0`  
 Estado: **FAIL — contrato estructural bloqueante; producción no modificada**

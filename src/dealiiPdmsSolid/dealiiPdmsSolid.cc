@@ -181,6 +181,9 @@ public:
   const AffineConstraints<double> &runtime_constraints() const { return constraints; }
   const SparsityPattern &runtime_sparsity() const { return sparsity; }
   std::string runtime_assembly_diagnostic();
+  std::string structural_state_payload(const std::string &kind) const;
+  void accept_protocol_time_step();
+  void rollback_protocol_time_step();
 
 private:
   void receive_generalized_pair_if_complete()
@@ -208,7 +211,7 @@ private:
   SparsityPattern sparsity;
   SparseMatrix<double> matrix;
   Vector<double> solution, old_solution, old_velocity;
-  Vector<double> older_solution, older_velocity, rhs;
+  Vector<double> older_solution, older_velocity, accepted_acceleration, rhs;
   unsigned int history_depth = 0;
   std::vector<unsigned int> interface_components;
   std::vector<std::array<types::global_dof_index,dim>> interface_node_dofs;
@@ -302,6 +305,7 @@ void PdmsSolid::finish_setup(const interface_sparsity::Manifest *manifest_overri
   old_velocity.reinit(dofs.n_dofs());
   older_solution.reinit(dofs.n_dofs());
   older_velocity.reinit(dofs.n_dofs());
+  accepted_acceleration.reinit(dofs.n_dofs());
   rhs.reinit(dofs.n_dofs());
   read_state();
 }
@@ -400,6 +404,15 @@ void PdmsSolid::read_state()
       older_velocity.block_read(input);
       input >> history_depth;
       history_depth = std::min(history_depth,2u);
+      input >> std::ws;
+      if (input.peek()!=std::char_traits<char>::eof())
+        accepted_acceleration.block_read(input);
+      else
+        {
+          accepted_acceleration=old_velocity;
+          accepted_acceleration-=older_velocity;
+          accepted_acceleration/=prm.get_double("delta t");
+        }
     }
   else
     {
@@ -434,6 +447,78 @@ void PdmsSolid::write_state() const
   old_solution.block_write(output);
   old_velocity.block_write(output);
   output << std::min(history_depth+1,2u) << '\n';
+  Vector<double> acceleration(velocity);
+  acceleration.add(-1.0,old_velocity);
+  if (bdf2)
+    {
+      acceleration *= 3.0;
+      acceleration.add(-1.0,old_velocity);
+      acceleration.add(1.0,older_velocity);
+      acceleration /= 2.0*dt;
+    }
+  else
+    acceleration /= dt;
+  acceleration.block_write(output);
+}
+
+std::string PdmsSolid::structural_state_payload(const std::string &kind) const
+{
+  AssertThrow(kind=="accepted" || kind=="provisional",
+              ExcMessage("invalid structural state kind"));
+  const bool provisional=kind=="provisional";
+  const double dt=prm.get_double("delta t");
+  const bool bdf2=prm.get("time integration")=="bdf2" && history_depth>=1;
+  Vector<double> velocity(dofs.n_dofs()),acceleration(dofs.n_dofs());
+  const Vector<double> &displacement=provisional ? solution : old_solution;
+  if (provisional)
+    for (types::global_dof_index id=0;id<dofs.n_dofs();++id)
+      {
+        velocity[id]=dealii_pdms::time_integration::velocity
+          (solution[id],old_solution[id],older_solution[id],dt,bdf2);
+        acceleration[id]=dealii_pdms::time_integration::acceleration
+          (velocity[id],old_velocity[id],older_velocity[id],dt,bdf2);
+      }
+  else
+    { velocity=old_velocity; acceleration=accepted_acceleration; }
+
+  std::map<types::global_dof_index,unsigned int> interface_dofs;
+  for (const auto &node:interface_node_dofs)
+    for (unsigned int component=0;component<dim;++component)
+      interface_dofs.emplace(node[component],component);
+  std::ostringstream out; out << std::setprecision(17)
+    << "stateKind " << kind << "\nintegrationScheme " << (bdf2 ? "BDF2" : "BE")
+    << "\ndisplacementUnits m\nvelocityUnits m/s\naccelerationUnits m/s2\nvalid 1\nentries "
+    << interface_dofs.size() << '\n';
+  for (const auto &entry:interface_dofs)
+    out << entry.first << ' ' << entry.second << ' ' << displacement[entry.first]
+        << ' ' << velocity[entry.first] << ' ' << acceleration[entry.first] << '\n';
+  out << "end\n";
+  return out.str();
+}
+
+void PdmsSolid::accept_protocol_time_step()
+{
+  const double dt=prm.get_double("delta t");
+  const bool bdf2=prm.get("time integration")=="bdf2" && history_depth>=1;
+  Vector<double> velocity(dofs.n_dofs()),acceleration(dofs.n_dofs());
+  for (types::global_dof_index id=0;id<dofs.n_dofs();++id)
+    {
+      velocity[id]=dealii_pdms::time_integration::velocity
+        (solution[id],old_solution[id],older_solution[id],dt,bdf2);
+      acceleration[id]=dealii_pdms::time_integration::acceleration
+        (velocity[id],old_velocity[id],older_velocity[id],dt,bdf2);
+    }
+  older_solution=old_solution; older_velocity=old_velocity;
+  old_solution=solution; old_velocity=velocity; accepted_acceleration=acceleration;
+  history_depth=std::min(history_depth+1,2u);
+  clear_provisional_generalized_interface_state();
+  write_state();
+}
+
+void PdmsSolid::rollback_protocol_time_step()
+{
+  solution=old_solution;
+  clear_provisional_generalized_interface_state();
 }
 
 double PdmsSolid::assemble_newton(const std::vector<Sample> &samples)
@@ -812,6 +897,34 @@ void PdmsSolid::run_executable_protocol()
                                              executable_protocol::parse_tangent(*pending_tangent));
               send(executable_protocol::Type::Ack,current,"activated 1\nend\n");
               send(executable_protocol::Type::AssemblyResult,current,runtime_assembly_diagnostic());
+            }
+          else if (current.message_type==executable_protocol::Type::RequestStructuralState)
+            {
+              std::istringstream request(current.payload); std::string state_kind;
+              request >> key >> state_kind; AssertThrow(key=="stateKind",ExcMessage("missing stateKind"));
+              request >> key; AssertThrow(key=="end",ExcMessage("truncated state request")); request >> std::ws;
+              AssertThrow(request.eof(),ExcMessage("trailing state request bytes"));
+              if (state_kind=="provisional")
+                {
+                  AssertThrow(generalized_load && generalized_load->is_received(),
+                              ExcMessage("provisional state requested before corrector activation"));
+                  solve_newton({});
+                }
+              send(executable_protocol::Type::StructuralStateMessage,current,
+                   structural_state_payload(state_kind));
+            }
+          else if (current.message_type==executable_protocol::Type::AcceptTimeStep)
+            {
+              AssertThrow(generalized_load && generalized_load->is_received(),
+                          ExcMessage("cannot accept without active corrector state"));
+              accept_protocol_time_step(); pending_force.reset(); pending_tangent.reset();
+              send(executable_protocol::Type::Ack,current,"accepted 1\nend\n");
+            }
+          else if (current.message_type==executable_protocol::Type::RejectTimeStep ||
+                   current.message_type==executable_protocol::Type::RollbackToAcceptedState)
+            {
+              rollback_protocol_time_step(); pending_force.reset(); pending_tangent.reset();
+              send(executable_protocol::Type::Ack,current,"rolledBack 1\nend\n");
             }
           else if (current.message_type==executable_protocol::Type::Shutdown)
             { pending_force.reset(); pending_tangent.reset();
