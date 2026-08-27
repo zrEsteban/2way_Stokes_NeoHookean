@@ -1,5 +1,13 @@
 # G2-B.1-EXEC-PROTOCOL — protocolo del ejecutable estructural
 
+## Dependencia pendiente para el handshake del operador
+
+El transporte permanece PASS, pero no se añadieron todavía
+`FluidPointManifest/HpsRowManifest`. La auditoría determinó que la referencia
+G2-A no ofrece una evaluación Q1 deal.II reutilizable: agregar sólo los schemas
+ocultaría la ausencia del productor canónico de filas. El bloqueo pertenece al
+constructor de operador, no al framing, checksum o difusión MPI de este gate.
+
 ## Extensión cinemática requerida por G2-B.2-LIVE
 
 El protocolo expone ahora `StructuralStateMessage` mediante una solicitud

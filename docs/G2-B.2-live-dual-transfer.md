@@ -1,5 +1,17 @@
 # G2-B.2 — conexión dual viva FVM–FEM
 
+## Resultado de G2-B.2-OPERATOR-HANDSHAKE
+
+El retry dirigido quedó **BLOCKED en preflight**. La referencia G2-A construye
+H_ps exclusivamente en Python releyendo `polyMesh` y `solid.msh`, con un Newton
+trilineal manual sobre candidatos volumétricos; no existe todavía un constructor
+deal.II reutilizable y restringido al boundary ID. La orden explícita del gate
+impide improvisar un segundo algoritmo. El diagnóstico completo y el cambio
+mínimo G2-A-RUNTIME-Q1 están en `docs/G2-B.2-operator-handshake.md`.
+
+No se añadieron los mensajes del operador, no se modificó el acoplador y no se
+alcanzó Ready. G2-B.2 debe reanudarse aún desde la etapa B, no desde la C.
+
 ## G2-B.2-LIVE — resultado dirigido (2026-08-26)
 
 Commit de entrada: `78c30e9da778e2daa1bd75794bb56bed618a880f`.

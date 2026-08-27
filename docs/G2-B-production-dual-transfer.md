@@ -1,5 +1,12 @@
 # G2-B — integración productiva del operador dual
 
+## Bloqueo de OPERATOR-HANDSHAKE
+
+La extensión `FluidPointManifest/HpsRowManifest` no puede implementarse aún sin
+crear una segunda definición de H_ps: G2-A sólo dispone del constructor Python
+que relee mallas y no usa la interfaz deal.II real. Se requiere primero
+G2-A-RUNTIME-Q1. Producción continúa en legacy y G2 permanece abierto.
+
 ## Estado tras G2-B.2-LIVE
 
 G2-B.2 permanece abierto. La cinemática estructural ya cruza el socket mediante
