@@ -1,5 +1,9 @@
 # G2-A-FILLET-MESH-QUALITY
 
+> Seguimiento 2026-08-28: la malla aprobada no cambió. RuntimeQ1 construyó H_ps
+> sobre sus 86445 puntos; la canonicalización fue paramétrica y no movió la
+> superficie. `minDet=0.00222376262038637` y Mesh OK permanecen vigentes.
+
 > Seguimiento 2026-08-28: el reintento RuntimeQ1 se detuvo en preflight por
 > filas incompatibles para `queryPointId=17289`. La malla continúa aprobada y
 > no fue modificada; el nuevo estado es `G2-A-RUNTIME-Q1 = FAIL_OPERATOR`.

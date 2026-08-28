@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "geometryVersion": 1,
+  "geometryContractHash": "b6f0e724f2b12893eb6e49f24904a070ef3e37b44d64ab5c455b6893ff46319b",
+  "fluidMeshSemanticHash": "8781ced412365874c791a49d8fe8b055a1f25436032b9ad5e425370540994554",
+  "coordinateFrame": "reference",
+  "coordinateUnits": "m",
+  "fluidPatchName": "interface",
+  "pointCount": 86445,
+  "canonicalCoordinateSha256": "8a237c6317c742a4ebf293cecad585ee7801c45a79eb5b4ccda479d6f683d614",
+  "serialFileSha256": "40022aadbf189e456be193fec794e098a50a13d7ef2f09fa8c3e69b5e5d8a882",
+  "payloadChecksumFNV1a64": "628bd2ef6170705b",
+  "runtimeQueryManifestHash": "6aedd17ba49b68ed",
+  "serialMpi2Mpi4CoordinatesEqual": true,
+  "generationSeconds": 2.30,
+  "generationPeakRssKiB": 149572,
+  "serializedTsvBytes": 5992077
+}

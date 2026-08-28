@@ -1,5 +1,9 @@
 # G2-A-GEOMETRY-CANONICALIZATION
 
+> Actualización 2026-08-28: la superficie FILLETED_MASTER permanece inmutable
+> y RuntimeQ1 acepta sus 86445 puntos con `projectionMode=none`. La precisión
+> de escritura es 17 para impedir que `decomposePar` redondee processor points.
+
 > Seguimiento 2026-08-28: la geometría y calidad siguen PASS. El reintento
 > RuntimeQ1 falló en su preflight por equivalencia de filas en una transición
 > Q1 (`queryPointId=17289`); no es una regresión geométrica.

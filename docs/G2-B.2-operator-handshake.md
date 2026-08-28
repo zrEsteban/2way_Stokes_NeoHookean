@@ -1,8 +1,9 @@
 # G2-B.2-OPERATOR-HANDSHAKE — evaluación Q1 de H_ps
 
-> Seguimiento 2026-08-28: **BLOCKED**. El reintento RuntimeQ1 sobre la malla
-> axial 1920 falló antes de construir H_ps (`queryPointId=17289`, filas de
-> arista/vértice incompatibles). No se añadieron mensajes al socket.
+> Seguimiento 2026-08-28: **READY_TO_REOPEN desde la etapa B**. RuntimeQ1
+> canonicalizó formalmente aristas/vértices y H_ps productivo pasa
+> serial/MPI/restart. Este gate no añadió mensajes al socket ni reintentó el
+> handshake; P_fp/H siguen pendientes.
 
 ## Resultado del prerrequisito G2-A-RUNTIME-Q1
 

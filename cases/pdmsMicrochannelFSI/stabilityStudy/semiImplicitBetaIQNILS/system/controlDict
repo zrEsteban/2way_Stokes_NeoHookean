@@ -15,7 +15,7 @@ deltaT 1e-07;
 // Writing every time step would create five million directories. Keep 50
 // physical-time snapshots instead.
 writeControl adjustableRunTime; writeInterval 1e-06; purgeWrite 0;
-writeFormat ascii; writePrecision 10; writeCompression off;
+writeFormat ascii; writePrecision 17; writeCompression off;
 timeFormat general; timePrecision 10; runTimeModifiable yes;
 // deal.II currently uses the same fixed dt from solid.prm, so adaptive stepping
 // is disabled to prevent temporal desynchronisation between participants.

@@ -1,5 +1,12 @@
 # G2-A-RUNTIME-Q1 — operador de interfaz Q1 productivo
 
+> Estado final 2026-08-28: **PASS_RUNTIME_Q1_WITH_COST_RISK**. La ambigüedad
+> de arista era `REFERENCE_ROUNDOFF` y fue corregida sin proyección ni aumento
+> de tolerancia física. H_ps productivo tiene 259335 filas, 932634 nonzeros y
+> pasa serial/MPI/restart. Véase
+> `docs/G2-A-runtime-q1-edge-canonicalization.md`. Las secciones posteriores
+> conservan el historial de bloqueos ya resueltos.
+
 ## Reintento sobre FILLETED_MASTER axial 1920 (2026-08-28)
 
 Clasificación: **FAIL_OPERATOR en preflight**.
