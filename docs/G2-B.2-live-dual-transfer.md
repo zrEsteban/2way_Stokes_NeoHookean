@@ -1,5 +1,9 @@
 # G2-B.2 — conexión dual viva FVM–FEM
 
+> Seguimiento 2026-08-28: permanece bloqueado. G2-A-RUNTIME-Q1-RETRY no superó
+> el preflight del operador y no produjo H_ps productivo; no se reintentó el
+> handshake ni ninguna etapa live.
+
 ## Dependencia RuntimeQ1
 
 G2-A-RUNTIME-Q1 creó el constructor productivo, pero detectó una discrepancia

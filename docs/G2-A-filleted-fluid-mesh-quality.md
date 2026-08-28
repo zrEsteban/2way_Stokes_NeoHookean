@@ -1,5 +1,9 @@
 # G2-A-FILLET-MESH-QUALITY
 
+> Seguimiento 2026-08-28: el reintento RuntimeQ1 se detuvo en preflight por
+> filas incompatibles para `queryPointId=17289`. La malla continúa aprobada y
+> no fue modificada; el nuevo estado es `G2-A-RUNTIME-Q1 = FAIL_OPERATOR`.
+
 Fecha: 2026-08-27
 
 Commit de entrada: `0c39a3783a8134539babdab8192d4cf4cc4b7406`

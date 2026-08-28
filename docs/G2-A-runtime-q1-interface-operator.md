@@ -1,5 +1,39 @@
 # G2-A-RUNTIME-Q1 — operador de interfaz Q1 productivo
 
+## Reintento sobre FILLETED_MASTER axial 1920 (2026-08-28)
+
+Clasificación: **FAIL_OPERATOR en preflight**.
+
+Con HEAD `0e4831bf1f5428cb20ef397f219631a23b6aa31e` y árbol limpio se
+recompiló `testRuntimeQ1` y se ejecutó contra la triangulación productiva y los
+86445 puntos instalados. El primer control obligatorio falló antes de generar
+un manifiesto nuevo:
+
+```text
+RUNTIME_Q1 FAIL: incompatible interface rows at edge/vertex for queryPointId 17289
+queryPointId 17289 = (2.5625e-6, 0, 3.225e-5) m
+```
+
+La geometría ya es coincidente y `checkMesh` está aprobado, por lo que este
+resultado no se reclasifica como `BLOCKED_GEOMETRY`. El localizador encuentra
+más de una cara válida en una transición compartida, pero su comprobación de
+equivalencia produce filas distintas. Es un defecto del operador o de su
+canonicalización numérica que debe aislarse con una prueba mínima antes de
+corregirlo.
+
+La regla de preflight ordenaba detenerse ante el primer fallo. Por ello no se
+generó QueryManifest OpenFOAM, no se publicó H_ps, no se midieron hashes,
+MPI/restart, payload ni escalabilidad y no se ejecutaron los restantes tests.
+`RuntimeQ1InterfaceOperator`, sus tolerancias, la malla, el contrato y
+`robinRobinCoupling` permanecieron intactos. Evidencia estructurada:
+`tests/g2ARuntimeQ1/operator-metrics.json`.
+
+Estado: `G2-A-RUNTIME-Q1 = FAIL_OPERATOR`, `G2-A-PRODUCTION = INCOMPLETE` y
+`G2-B.2-OPERATOR-HANDSHAKE = BLOCKED`. El siguiente subgate mínimo debe
+descomponer las filas candidatas del punto 17289, demostrar si difieren sólo
+por coordenadas de referencia de redondeo o por soporte/peso real, y validar
+una canonicalización sin aumentar tolerancias.
+
 Fecha: 2026-08-26
 
 Commit de entrada: `3e510296513c3e1a38bd35659c3639b35a62699d`

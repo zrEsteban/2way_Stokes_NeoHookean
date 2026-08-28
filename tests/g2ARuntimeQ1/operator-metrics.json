@@ -1,0 +1,19 @@
+{
+  "gate": "G2-A-RUNTIME-Q1-RETRY",
+  "date": "2026-08-28",
+  "classification": "FAIL_OPERATOR",
+  "stage": "PREFLIGHT_RUNTIME_Q1",
+  "inputCommit": "0e4831bf1f5428cb20ef397f219631a23b6aa31e",
+  "geometryContractHash": "b6f0e724f2b12893eb6e49f24904a070ef3e37b44d64ab5c455b6893ff46319b",
+  "fluidCells": 460800,
+  "minimumDeterminant": 0.00222376262038637,
+  "queryPointId": 17289,
+  "queryCoordinateMetres": [2.5625e-06, 0.0, 3.225e-05],
+  "failure": "incompatible interface rows at edge/vertex",
+  "queryManifestGenerated": false,
+  "operatorPublished": false,
+  "runtimeQ1Modified": false,
+  "toleranceModified": false,
+  "projectionUsed": false,
+  "nearestNeighbourUsed": false
+}

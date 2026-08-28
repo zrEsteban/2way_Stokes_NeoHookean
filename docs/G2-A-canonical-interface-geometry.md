@@ -1,5 +1,9 @@
 # G2-A-GEOMETRY-CANONICALIZATION
 
+> Seguimiento 2026-08-28: la geometría y calidad siguen PASS. El reintento
+> RuntimeQ1 falló en su preflight por equivalencia de filas en una transición
+> Q1 (`queryPointId=17289`); no es una regresión geométrica.
+
 Fecha: 2026-08-27
 
 Commit de entrada: `8e07a7c295af9de317d98a324c9621fad252a3e3`

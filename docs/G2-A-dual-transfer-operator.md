@@ -1,5 +1,10 @@
 # G2-A — operador dual FVM–FEM
 
+> Estado 2026-08-28: el oracle offline conserva su PASS histórico, pero H_ps
+> productivo sigue incompleto. G2-A-RUNTIME-Q1-RETRY terminó `FAIL_OPERATOR` en
+> preflight por filas incompatibles para `queryPointId=17289`; no se publicó un
+> operador runtime nuevo.
+
 ## Corrección de alcance tras G2-A-RUNTIME-Q1
 
 `G2-A-OFFLINE=PASS`, `G2-A-RUNTIME-Q1=BLOCKED_GEOMETRY` y
