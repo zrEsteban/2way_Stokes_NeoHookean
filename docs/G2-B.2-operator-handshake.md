@@ -16,9 +16,9 @@ permanece bloqueada hasta un subgate de geometrías nominalmente coincidentes;
 no debe añadirse todavía `FluidPointManifest`/`HpsRowManifest`.
 
 La geometría maestra filleted ya está especificada y su superficie candidata es
-coincidente, pero la malla volumétrica no supera `checkMesh`. El handshake sigue
-`BLOCKED`; no se reabre hasta resolver `BLOCKED_MESH_QUALITY` y repetir
-RuntimeQ1 sin reservas.
+coincidente. G2-A-FILLET-MESH-QUALITY cerró `BLOCKED_MESH_QUALITY` con
+`minDet=0.00222376262038637` y `Mesh OK` serial/MPI-2/MPI-4. El handshake sigue
+`BLOCKED` únicamente hasta repetir RuntimeQ1 sin reservas; no se reabrió aquí.
 
 Fecha: 2026-08-26
 

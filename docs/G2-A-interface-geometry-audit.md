@@ -8,6 +8,11 @@ Estado del subgate: **PASS como auditoría**
 
 Clasificación primaria: **CAD_MISMATCH**
 
+Actualización 2026-08-27: `FILLETED_MASTER` resolvió este `CAD_MISMATCH` y
+G2-A-FILLET-MESH-QUALITY instaló una malla coincidente con `Mesh OK`. Esta
+auditoría se conserva como fixture sharp-corner; la clasificación causal
+histórica no cambia.
+
 La auditoría no modificó `RuntimeQ1InterfaceOperator`, su tolerancia ni
 `src/robinRobinCoupling`; tampoco proyectó puntos, regeneró mallas o ejecutó un
 caso FSI dual. Los estados que motivaron el gate no cambian:

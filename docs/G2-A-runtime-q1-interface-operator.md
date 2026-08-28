@@ -12,6 +12,11 @@ Estado corregido de G2-A:
 - `G2-A-RUNTIME-Q1 = BLOCKED_GEOMETRY`;
 - `G2-A-PRODUCTION = INCOMPLETE`.
 
+Actualización 2026-08-27: la geometría canónica y su calidad volumétrica ya
+pasaron. La malla instalada tiene 460800 celdas, `minDet=0.00222376262038637`
+y cero incompatibilidades geométricas. Este gate queda `PENDING_RETRY`; no fue
+reintentado como parte de la remediación de malla.
+
 La auditoría posterior `G2-A-GEOMETRY-AUDIT` fue **PASS como auditoría** y
 clasificó la causa primaria como `CAD_MISMATCH`: el fluido tiene esquinas
 superiores agudas, mientras el sólido usa filetes circulares de radio

@@ -135,7 +135,7 @@ def write_queries_and_metadata(poly_mesh,contract,nodes,surfaces,output):
         for point in face:
             if point not in seen: seen.add(point); ids.append(point)
     with (output/"robin-query.csv").open("w",newline="") as stream:
-        writer=csv.writer(stream); writer.writerow(["x","y","z"]); writer.writerows(points[i] for i in ids)
+        writer=csv.writer(stream,lineterminator="\n"); writer.writerow(["x","y","z"]); writer.writerows(points[i] for i in ids)
     master=[]
     for eid,tag,conn in surfaces:
         if tag==contract["names"]["structuralInterfaceBoundaryId"]: master.append((eid,conn,[nodes[n] for n in conn]))
@@ -160,8 +160,13 @@ def semantic_mesh_hash(poly_mesh):
     boundary=re.sub(r"//.*","",(poly_mesh/"boundary").read_text())
     return canonical_hash({"points":points,"faces":faces,"boundary":" ".join(boundary.split())})
 
-def generate(contract_path,case,output,install=False):
+def generate(contract_path,case,output,install=False,overrides=None):
     contract=read_contract(contract_path); output.mkdir(parents=True,exist_ok=False)
+    overrides={key:value for key,value in (overrides or {}).items() if value is not None}
+    allowed={"fluidAxialCells","fluidWidthCells","fluidHeightCells","fluidSideProgression","fluidSmoothingSteps"}
+    unknown=set(overrides)-allowed
+    if unknown: raise RuntimeError(f"unsupported discretization overrides: {sorted(unknown)}")
+    contract["discretization"].update(overrides)
     logs=output/"logs"; logs.mkdir(); wrapper=output/"solid.generated.geo"; solid=output/"solid.msh"
     solid_wrapper(contract,wrapper); run(["gmsh",str(wrapper),"-3","-format","msh2","-o",str(solid),"-v","2"],logs/"gmsh-solid.log")
     names,nodes,surfaces,volumes=parse_msh(solid); bid=contract["names"]["structuralInterfaceBoundaryId"]
@@ -179,7 +184,9 @@ def generate(contract_path,case,output,install=False):
         if source.exists(): shutil.copy2(source,convert/"system"/dictionary)
     run(["gmshToFoam","-case",str(convert),str(fluid_msh)],logs/"gmshToFoam-fluid.log")
     poly=convert/"constant/polyMesh"; point_count,interface_faces,interface_points=write_queries_and_metadata(poly,contract,nodes,surfaces,output)
+    effective_discretization={key:contract["discretization"][key] for key in sorted(allowed)}
     manifest={"schemaVersion":1,"geometryContractHash":contract["geometryContractHash"],"geometryVersion":contract["geometryVersion"],
+      "effectiveDiscretization":effective_discretization,"discretizationHash":canonical_hash(effective_discretization),
       "tools":{"gmsh":subprocess.run(["gmsh","--version"],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,check=True).stdout.strip()},
       "solid":{"cells":len(volumes),"points":len(nodes),"interfaceFaces":sum(tag==bid for _,tag,_ in surfaces),"sha256":sha(solid)},
       "fluid":{"cells":len(fluid_volumes),"points":point_count,"gmshPoints":len(fluid_nodes),"interfaceFaces":interface_faces,"interfacePoints":interface_points,"mshSha256":sha(fluid_msh),"polyMeshSemanticHash":semantic_mesh_hash(poly)},
@@ -188,9 +195,15 @@ def generate(contract_path,case,output,install=False):
     if install:
         fluid_dest=case/"constant/fluid/polyMesh"; shutil.rmtree(fluid_dest,ignore_errors=True); shutil.copytree(poly,fluid_dest)
         shutil.copy2(solid,case/"dealiiSolid/solid.msh"); shutil.copy2(output/"robin-query.csv",case/"dealiiSolid/robin-query.csv")
-        shutil.copy2(output/"interface-generation-metadata.json",case/"dealiiSolid/interface-generation-metadata.json")
     print(json.dumps(manifest,sort_keys=True))
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(); parser.add_argument("--contract",type=Path,default=DEFAULT_CONTRACT); parser.add_argument("--case",type=Path,default=DEFAULT_CASE); parser.add_argument("--output",type=Path,required=True); parser.add_argument("--install",action="store_true")
-    args=parser.parse_args(); generate(args.contract.resolve(),args.case.resolve(),args.output.resolve(),args.install)
+    parser.add_argument("--fluid-axial-cells",type=int); parser.add_argument("--fluid-width-cells",type=int)
+    parser.add_argument("--fluid-height-cells",type=int); parser.add_argument("--fluid-side-progression",type=float)
+    parser.add_argument("--fluid-smoothing-steps",type=int)
+    args=parser.parse_args()
+    overrides={"fluidAxialCells":args.fluid_axial_cells,"fluidWidthCells":args.fluid_width_cells,
+      "fluidHeightCells":args.fluid_height_cells,"fluidSideProgression":args.fluid_side_progression,
+      "fluidSmoothingSteps":args.fluid_smoothing_steps}
+    generate(args.contract.resolve(),args.case.resolve(),args.output.resolve(),args.install,overrides)

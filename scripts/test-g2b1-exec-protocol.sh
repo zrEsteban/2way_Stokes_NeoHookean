@@ -6,8 +6,14 @@ work=${G2B1_EXEC_WORK:-$(mktemp -d /tmp/g2b1-exec.XXXXXX)}
 [[ ! -e "$work" ]] || [[ -d "$work" && -z "$(find "$work" -mindepth 1 -print -quit)" ]] || {
   echo "ERROR: work directory is not empty: $work" >&2; exit 2; }
 mkdir -p "$work"
-python3 "$repo_root/scripts/audit-g2b1-sparsity.py" \
-  --export-manifest "$work/interface.manifest" "$case_dir" >"$work/reference.json"
+if [[ -n "${G2B1_INTERFACE_MANIFEST:-}" ]]; then
+  cp "$G2B1_INTERFACE_MANIFEST" "$work/interface.manifest"
+  printf '{"source":"prevalidated-manifest","sha256":"%s"}\n' \
+    "$(sha256sum "$work/interface.manifest" | awk '{print $1}')" >"$work/reference.json"
+else
+  python3 "$repo_root/scripts/audit-g2b1-sparsity.py" \
+    --export-manifest "$work/interface.manifest" "$case_dir" >"$work/reference.json"
+fi
 cmake -S "$repo_root/src/dealiiPdmsSolid" -B "$work/build" -DCMAKE_BUILD_TYPE=Release
 cmake --build "$work/build" --target dealiiPdmsSolid testExecutableProtocol testRuntimeNewton -j2
 "$work/build/testExecutableProtocol"

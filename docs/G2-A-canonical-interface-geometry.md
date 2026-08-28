@@ -4,9 +4,14 @@ Fecha: 2026-08-27
 
 Commit de entrada: `8e07a7c295af9de317d98a324c9621fad252a3e3`
 
-Clasificación primaria: **BLOCKED_MESH_QUALITY**
+Clasificación actual: **PASS_FILLETED_MASTER** tras G2-A-FILLET-MESH-QUALITY
 
-El subgate no es PASS. Se consiguió una interfaz discreta exactamente
+> Actualización 2026-08-27: el bloqueo de calidad descrito abajo fue cerrado
+> por la malla axial 1920 documentada en
+> `docs/G2-A-filleted-fluid-mesh-quality.md`. El texto posterior conserva la
+> evidencia histórica de la candidata rechazada de 80 capas.
+
+La primera ejecución del subgate no fue PASS. Se consiguió una interfaz discreta exactamente
 coincidente y un generador determinista, pero `checkMesh -allGeometry
 -allTopology` rechaza la calidad volumétrica cerca de los filetes. La malla
 candidata no se instaló en el caso canónico. No se reintentó el handshake, no se
@@ -159,11 +164,12 @@ reabrir RuntimeQ1. Después corresponderá resolver separadamente la
 canonicalización numérica de trazas Q1 compartidas, repetir RuntimeQ1
 serial/MPI/restart y sólo entonces declarar el handshake `READY_TO_REOPEN`.
 
-Estados finales:
+Estados posteriores a la remediación de calidad:
 
 - `G2-A-OFFLINE = PASS histórico`;
-- `G2-A-GEOMETRY-CANONICALIZATION = BLOCKED_MESH_QUALITY`;
-- `G2-A-RUNTIME-Q1 = BLOCKED_GEOMETRY`;
+- `G2-A-GEOMETRY-CANONICALIZATION = PASS_FILLETED_MASTER`;
+- `G2-A-FILLET-MESH-QUALITY = PASS`;
+- `G2-A-RUNTIME-Q1 = PENDING_RETRY`;
 - `G2-A-PRODUCTION = INCOMPLETE`;
 - `G2-B.2-HANDSHAKE = BLOCKED`;
 - `G2 global = OPEN`.
